@@ -1,9 +1,21 @@
+# WHIST README
 
+This repository is Whist's fork of mimalloc, with a few modifications. We forked mimalloc so that we could implement memory locking in the protocol for all our allocatins. For instructions on how to build the Whist version of mimalloc for development on your platform, consult the Building section below. 
+
+## Whist changelog
+
+- added `mlock` usage in `_mi_os_commitx` and `munlock` usage in `_mi_os_commitx`, `mi_os_mem_free`, `mi_os_resetx`
+
+## Building
+
+See the mimalloc build instructions -- they are very short and simple.
+
+# mimalloc README
 <img align="left" width="100" height="100" src="doc/mimalloc-logo.png"/>
 
 [<img align="right" src="https://dev.azure.com/Daan0324/mimalloc/_apis/build/status/microsoft.mimalloc?branchName=dev"/>](https://dev.azure.com/Daan0324/mimalloc/_build?definitionId=1&_a=summary)
 
-# mimalloc
+## mimalloc
 
 &nbsp;
 
@@ -190,7 +202,7 @@ You can also directly build the single `src/static.c` file as part of your proje
 needing `cmake` at all. Make sure to also add the mimalloc `include` directory to the include path.
 
 
-# Using the library
+## Using the library
 
 The preferred usage is including `<mimalloc.h>`, linking with
 the shared- or static library, and using the `mi_malloc` API exclusively for allocation. For example,
@@ -338,7 +350,7 @@ When _mimalloc_ is built using debug mode, various checks are done at runtime to
 - Corrupted free-lists and some forms of use-after-free are detected.
 
 
-# Overriding Standard Malloc
+## Overriding Standard Malloc
 
 Overriding the standard `malloc` (and `new`) can be done either _dynamically_ or _statically_.
 
@@ -637,7 +649,7 @@ see the differences in the _larsonN_, _mstressN_, and _xmalloc-testN_ benchmarks
 -->
 
 
-# References
+## References
 
 - \[1] Emery D. Berger, Kathryn S. McKinley, Robert D. Blumofe, and Paul R. Wilson.
    _Hoard: A Scalable Memory Allocator for Multithreaded Applications_
@@ -674,7 +686,7 @@ see the differences in the _larsonN_, _mstressN_, and _xmalloc-testN_ benchmarks
   In Proceedings of the 2019 ACM SIGPLAN International Symposium on Memory Management, 122–135. ACM. 2019.
 -->
 
-# Contributing
+## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
@@ -685,7 +697,7 @@ a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow th
 provided by the bot. You will only need to do this once across all repos using our CLA.
 
 
-# Older Release Notes
+## Older Release Notes
 
 * 2020-09-24, `v1.6.7`: stable release 1.6: using standard C atomics, passing tsan testing, improved
   handling of failing to commit on Windows, add [`mi_process_info`](https://github.com/microsoft/mimalloc/blob/master/include/mimalloc.h#L156) api call.
