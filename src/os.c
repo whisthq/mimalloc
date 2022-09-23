@@ -62,8 +62,6 @@ terms of the MIT license. A copy of the license can be found in the file
 #endif
 #endif
 
-// WHIST CHANGES
-// we mlock on os_commit and munlock on decommit, reset, and free
 // mlock macros
 // we need to align the address only to page size, not the size
 // but we still have to compute the new size once we align the address

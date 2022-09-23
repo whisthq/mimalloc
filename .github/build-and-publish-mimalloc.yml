@@ -8,12 +8,12 @@ name: "Build & Publish Whist mimalloc"
 on:
   pull_request:
     branches:
-      - main
+      - whist-main
     paths-ignore:
       - README.md
   push:
     branches:
-      - main
+      - whist-main
     paths-ignore:
       - README.md
   workflow_dispatch:
