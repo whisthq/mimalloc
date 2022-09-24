@@ -1,0 +1,75 @@
+{
+  labels: ["dependencies"],
+
+  // We want at most 10 PRs per hour, at most 2 at a time
+  prHourlyLimit: 10,
+  prConcurrentLimit: 2,
+
+  // We target various path prefixes to group those PRs together
+  packageRules: [
+    {
+      matchPaths: [".github/workflows/"],
+      groupName: ".github/workflows",
+    },
+    {
+      matchPaths: ["VisualC-WinRT/"],
+      groupName: "VisualC-WinRT",
+    },
+    {
+      matchPaths: ["VisualC/"],
+      groupName: "VisualC",
+    },
+    {
+      matchPaths: ["Xcode-iOS/"],
+      groupName: "Xcode-iOS",
+    },
+    {
+      matchPaths: ["Xcode/"],
+      groupName: "Xcode",
+    },
+    {
+      matchPaths: ["acinclude/"],
+      groupName: "acinclude",
+    },
+    {
+      matchPaths: ["android-project-ant/"],
+      groupName: "android-project-ant",
+    },
+    {
+      matchPaths: ["android-project/"],
+      groupName: "android-project",
+    },
+    {
+      matchPaths: ["build-scripts/"],
+      groupName: "build-scripts",
+    },
+    {
+      matchPaths: ["cmake/"],
+      groupName: "cmake",
+    },
+    {
+      matchPaths: ["docs/"],
+      groupName: "docs",
+    },
+    {
+      matchPaths: ["include/"],
+      groupName: "include",
+    },
+    {
+      matchPaths: ["src/"],
+      groupName: "src",
+    },
+    {
+      matchPaths: ["test/"],
+      groupName: "test",
+    },
+    {
+      matchPaths: ["visualtest/"],
+      groupName: "visualtest",
+    },
+    {
+      matchPaths: ["wayland-protocols/"],
+      groupName: "wayland-protocols",
+    },
+  ],
+}
