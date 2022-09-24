@@ -58,23 +58,17 @@ git rebase upstream/main
 git push origin <current branch>
 ```
 
+Note that `whist-main`, the default branch on this repository, should be based off of the latest stable release tag from upstream mimalloc.
+
 ## Building
 
 See the mimalloc build instructions below -- they are very short and simple.
 
 ## Publishing
 
+For every push to `whist-main`, for instance when we pull the latest changes from upstream or if we make changes to mimalloc and merge to `main`, the static version of mimalloc on macOS will be built and published to AWS S3, via the GitHub Actions workflow `.github/workflows/build-and-publish-mimalloc.yml`, from where the Whist protocol retrieves its libraries. The newly-uploaded mimalloc libraries will be automatically deployed with the next `whisthq/whist` update. **Only stable changes should make it to `whist-main`.**
 
-
-
-
-For every push to `main`, for instance when we pull the latest changes from upstream or if we make changes to SDL and merge to `main`, the static version of SDL on Windows, macOS and Linux Ubuntu will be built and published to AWS S3, via the GitHub Actions workflow `.github/workflows/build-and-publish-sdl.yml`, from where the Whist protocol retrieves its libraries. The newly-uploaded SDL libraries will be automatically deployed with the next `whisthq/whist` update. **Only stable changes should make it to `main`.**
-
-See the [Changelog](#Changelog) above for the list of changes on top of the public version of SDL that are incorporated in our internal Whist version of SDL.
-
-
-
-
+See the [Changelog](#Changelog) above for the list of changes on top of the public version of mimalloc that are incorporated in our internal Whist version of mimalloc.
 
 ---
 
@@ -85,7 +79,7 @@ mimalloc README
 
 [<img align="right" src="https://dev.azure.com/Daan0324/mimalloc/_apis/build/status/microsoft.mimalloc?branchName=dev"/>](https://dev.azure.com/Daan0324/mimalloc/_build?definitionId=1&_a=summary)
 
-## mimalloc
+# mimalloc
 
 &nbsp;
 
@@ -272,7 +266,7 @@ You can also directly build the single `src/static.c` file as part of your proje
 needing `cmake` at all. Make sure to also add the mimalloc `include` directory to the include path.
 
 
-## Using the library
+# Using the library
 
 The preferred usage is including `<mimalloc.h>`, linking with
 the shared- or static library, and using the `mi_malloc` API exclusively for allocation. For example,
@@ -420,7 +414,7 @@ When _mimalloc_ is built using debug mode, various checks are done at runtime to
 - Corrupted free-lists and some forms of use-after-free are detected.
 
 
-## Overriding Standard Malloc
+# Overriding Standard Malloc
 
 Overriding the standard `malloc` (and `new`) can be done either _dynamically_ or _statically_.
 
@@ -719,7 +713,7 @@ see the differences in the _larsonN_, _mstressN_, and _xmalloc-testN_ benchmarks
 -->
 
 
-## References
+# References
 
 - \[1] Emery D. Berger, Kathryn S. McKinley, Robert D. Blumofe, and Paul R. Wilson.
    _Hoard: A Scalable Memory Allocator for Multithreaded Applications_
@@ -756,7 +750,7 @@ see the differences in the _larsonN_, _mstressN_, and _xmalloc-testN_ benchmarks
   In Proceedings of the 2019 ACM SIGPLAN International Symposium on Memory Management, 122–135. ACM. 2019.
 -->
 
-## Contributing
+# Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
@@ -767,7 +761,7 @@ a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow th
 provided by the bot. You will only need to do this once across all repos using our CLA.
 
 
-## Older Release Notes
+# Older Release Notes
 
 * 2020-09-24, `v1.6.7`: stable release 1.6: using standard C atomics, passing tsan testing, improved
   handling of failing to commit on Windows, add [`mi_process_info`](https://github.com/microsoft/mimalloc/blob/master/include/mimalloc.h#L156) api call.
