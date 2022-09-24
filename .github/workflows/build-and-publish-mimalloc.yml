@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   build-and-publish-whist-mimalloc:
-    name: ${{ matrix.config.name }} (${{ matrix.options.name }})
+    name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
 
     strategy:
@@ -59,18 +59,23 @@ jobs:
 
       ###################################################################################
       ################################# MACOS STEPS START ###############################
+
+
+
+
       - name: Build mimalloc on macOS
         if: runner.os == 'macOS'
         env:
           CMAKE_OSX_SYSROOT: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
         run: |
           mkdir -p out/release && cd out/release
-          if [[ "${{ matrix.config.arch }}" == "x86_64" ]]; then
+          
+          if [[ "${{ matrix.config.name }}" == "macOS (x64)" ]]; then
             # configure Cmake and build mimalloc for native compilation on x64 systems
             cmake ../.. \
                   -D CMAKE_OSX_DEPLOYMENT_TARGET="10.13" \
                   -D CMAKE_OSX_SYSROOT="${{ env.CMAKE_OSX_SYSROOT }}"
-          elif [[ "${{ matrix.config.arch }}" == "arm64" ]]; then
+          elif [[ "${{ matrix.config.name }}" == "macOS (arm64)" ]]; then
             # configure Cmake and build mimalloc for cross-compilation to arm64 from x64 systems
             cmake ../.. \
                   -D CMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
@@ -95,10 +100,10 @@ jobs:
         shell: bash --noprofile --norc -eo pipefail {0}
         run: |
           if [ "$RUNNER_OS" == "macOS" ]; then
-            if [[ "${{ matrix.config.arch }}" == "x86_64" ]]; then
+            if [[ "${{ matrix.config.name }}" == "macOS (x64)" ]]; then
               tar -zcvf ${{ env.macos-x64-tar-name }} libmimalloc.a
               aws s3 cp ${{ env.macos-x64-tar-name }} ${{ env.s3-bucket-uri }}/${{ env.macos-x64-tar-name }}
-            elif [[ "${{ matrix.config.arch }}" == "arm64" ]]; then
+            elif [[ "${{ matrix.config.name }}" == "macOS (arm64)" ]]; then
               tar -zcvf ${{ env.macos-arm64-tar-name }} libmimalloc.a
               aws s3 cp ${{ env.macos-arm64-tar-name }} ${{ env.s3-bucket-uri }}/${{ env.macos-arm64-tar-name }}
             else
@@ -137,6 +142,7 @@ jobs:
           SLACK_WEBHOOK = "${{ secrets.SLACK_HOOKS_ENDPOINT_PROD }}"
           BODY = f"@releases :rotating_light: Failed to deploy Whist `mimalloc` Static Library to AWS S3, investigate immediately :rotating_light: (<https://github.com/whisthq/mimalloc/actions/runs/${{ github.run_id }} | see logs>)"
           slack_post(slack_webhook=SLACK_WEBHOOK, body=BODY)
+
   #######################################################################################
   #######################################################################################
 
