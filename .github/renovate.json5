@@ -12,44 +12,24 @@
       groupName: ".github/workflows",
     },
     {
-      matchPaths: ["VisualC-WinRT/"],
-      groupName: "VisualC-WinRT",
-    },
-    {
-      matchPaths: ["VisualC/"],
-      groupName: "VisualC",
-    },
-    {
-      matchPaths: ["Xcode-iOS/"],
-      groupName: "Xcode-iOS",
-    },
-    {
-      matchPaths: ["Xcode/"],
-      groupName: "Xcode",
-    },
-    {
-      matchPaths: ["acinclude/"],
-      groupName: "acinclude",
-    },
-    {
-      matchPaths: ["android-project-ant/"],
-      groupName: "android-project-ant",
-    },
-    {
-      matchPaths: ["android-project/"],
-      groupName: "android-project",
-    },
-    {
-      matchPaths: ["build-scripts/"],
-      groupName: "build-scripts",
+      matchPaths: ["bin/"],
+      groupName: "bin",
     },
     {
       matchPaths: ["cmake/"],
       groupName: "cmake",
     },
     {
+      matchPaths: ["doc/"],
+      groupName: "doc",
+    },
+    {
       matchPaths: ["docs/"],
       groupName: "docs",
+    },
+    {
+      matchPaths: ["ide/"],
+      groupName: "ide",
     },
     {
       matchPaths: ["include/"],
@@ -62,14 +42,6 @@
     {
       matchPaths: ["test/"],
       groupName: "test",
-    },
-    {
-      matchPaths: ["visualtest/"],
-      groupName: "visualtest",
-    },
-    {
-      matchPaths: ["wayland-protocols/"],
-      groupName: "wayland-protocols",
     },
   ],
 }
