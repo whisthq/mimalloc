@@ -63,6 +63,11 @@ jobs:
 
 
 
+      # Note, 
+      # /Users/runner/work/mimalloc/mimalloc/src/alloc-override.c:82:21: warning: 'aligned_alloc' is only available on macOS 10.15 or newer [-Wunguarded-availability-new]
+
+
+
       - name: Build mimalloc on macOS
         if: runner.os == 'macOS'
         env:
@@ -70,10 +75,14 @@ jobs:
         run: |
           mkdir -p out/release && cd out/release
           
+
+
+
+
           if [[ "${{ matrix.config.name }}" == "macOS (x64)" ]]; then
             # configure Cmake and build mimalloc for native compilation on x64 systems
             cmake ../.. \
-                  -D CMAKE_OSX_DEPLOYMENT_TARGET="10.13" \
+                  -D CMAKE_OSX_DEPLOYMENT_TARGET="10.15" \
                   -D CMAKE_OSX_SYSROOT="${{ env.CMAKE_OSX_SYSROOT }}"
           elif [[ "${{ matrix.config.name }}" == "macOS (arm64)" ]]; then
             # configure Cmake and build mimalloc for cross-compilation to arm64 from x64 systems
