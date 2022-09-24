@@ -1,3 +1,79 @@
+Whist README
+=============
+
+[![.github/workflows/build-and-publish-mimalloc.yml](https://github.com/whisthq/mimalloc/actions/workflows/build-and-publish-mimalloc.yml/badge.svg)](https://github.com/whisthq/mimalloc/actions/workflows/build-and-publish-mimalloc.yml)
+
+This repository is Whist's fork of mimalloc, with a few modifications. We forked mimalloc so that we could implement memory locking in the protocol for all our allocatins. For instructions on how to build the Whist version of mimalloc for development on your platform, consult the Building section below. 
+
+## Whist Changelog
+
+- Added `mlock` usage in `_mi_os_commitx` and `munlock` usage in `_mi_os_commitx`, `mi_os_mem_free`, `mi_os_resetx`, for macOS
+
+- Created a GitHub Actions workflow, `build-and-publish-mimalloc.yml`, to build, test and publish on macOS
+
+## Development
+
+Before building or modifying the code, you should pull the latest changes from the public [`microsoft/mimalloc`](https://github.com/microsoft/mimalloc) repository that this repository is forked from. To set up your repository, follow these steps:
+
+1. Clone and enter the repository
+
+```
+git clone https://github.com/whisthq/mimalloc && cd mimalloc
+```
+
+2. Add the upstream repository as a remote
+
+```
+git remote add upstream https://github.com/microsoft/mimalloc
+```
+
+3. Disable pushing to upstream mimalloc (ensures that git will push to [`whisthq/mimalloc`](https://github.com/whisthq/mimalloc) instead of erroring out)
+
+```
+git remote set-url --push upstream DISABLE
+```
+
+After this, you should be able to list your remotes with `git remote -v` if you ever need to debug.
+
+Since mimalloc is quite an active project, we will eventually need to work with the latest code. Meanwhile, we need to make sure that our own repository has a sane commit history -- we cannot simply periodically merge the latest mimalloc on top of our own modifications.
+
+Instead, perform the following steps to incorporate changes from upstream:
+
+1. Fetch the latest changes to the `upstream` remote
+
+```
+git fetch upstream
+```
+
+2. Rebase on top of your current work
+
+```
+git rebase upstream/main
+# git rebase upstream/<desired branch> for other upstream branches
+```
+
+3. Resolve merge conflicts, if any arise, and push to the Whist mimalloc repository
+
+```
+git push origin <current branch>
+```
+
+Note that `whist-main`, the default branch on this repository, should be based off of the latest stable release tag from upstream mimalloc.
+
+## Building
+
+See the mimalloc build instructions below -- they are very short and simple.
+
+## Publishing
+
+For every push to `whist-main`, for instance when we pull the latest changes from upstream or if we make changes to mimalloc and merge to `main`, the static version of mimalloc on macOS will be built and published to AWS S3, via the GitHub Actions workflow `.github/workflows/build-and-publish-mimalloc.yml`, from where the Whist protocol retrieves its libraries. The newly-uploaded mimalloc libraries will be automatically deployed with the next `whisthq/whist` update. **Only stable changes should make it to `whist-main`.**
+
+See the [Changelog](#Changelog) above for the list of changes on top of the public version of mimalloc that are incorporated in our internal Whist version of mimalloc.
+
+---
+
+mimalloc README
+=============
 
 <img align="left" width="100" height="100" src="doc/mimalloc-logo.png"/>
 
