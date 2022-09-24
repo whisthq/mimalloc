@@ -38,6 +38,7 @@ jobs:
             os: macos-11 # Xcode and Homebrew come preinstalled
 
     env:
+      binary-location: out/release
       macos-x64-tar-name: whist-macos-x64-mimalloc-static-lib.tar.gz
       macos-arm64-tar-name: whist-macos-arm64-mimalloc-static-lib.tar.gz
       headers-tar-name: whist-mimalloc-headers.tar.gz
@@ -60,24 +61,15 @@ jobs:
       ###################################################################################
       ################################# MACOS STEPS START ###############################
 
-
-
-
-      # Note, 
-      # /Users/runner/work/mimalloc/mimalloc/src/alloc-override.c:82:21: warning: 'aligned_alloc' is only available on macOS 10.15 or newer [-Wunguarded-availability-new]
-
-
-
+      # Note, mimalloc makes use of aligned_alloc, which is only available on macOS 10.15 and and above. We deem
+      # this version requirement acceptable, so we don't guard it.
       - name: Build mimalloc on macOS
         if: runner.os == 'macOS'
         env:
           CMAKE_OSX_SYSROOT: "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
         run: |
-          mkdir -p out/release && cd out/release
-          
-
-
-
+          # create build output folder
+          mkdir -p ${{ env.binary-location }} && cd ${{ env.binary-location }}
 
           if [[ "${{ matrix.config.name }}" == "macOS (x64)" ]]; then
             # configure Cmake and build mimalloc for native compilation on x64 systems
@@ -95,17 +87,16 @@ jobs:
             exit
           fi
 
+          # build mimalloc
           make
-
-          mv libmimalloc.a ../..
-          cd ../..
 
       ###################################################################################
       ################################# PUBLISH STEPS START #############################
 
-      # Only publish to AWS S3 on Push events (code merged into `dev`), PRs only build to test
+      # Only publish to AWS S3 on Push events (code merged into `whist-main`), PRs only build to test
       - name: Tar mimalloc and Upload to AWS S3 (Only on Push/Workflow_dispatch Events)
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        working-directory: ${{ env.binary-location }}
         shell: bash --noprofile --norc -eo pipefail {0}
         run: |
           if [ "$RUNNER_OS" == "macOS" ]; then
@@ -116,7 +107,7 @@ jobs:
               tar -zcvf ${{ env.macos-arm64-tar-name }} libmimalloc.a
               aws s3 cp ${{ env.macos-arm64-tar-name }} ${{ env.s3-bucket-uri }}/${{ env.macos-arm64-tar-name }}
             else
-              echo "Tried to tar and upload to S3 for an unsupported OS"
+              echo "Tried to tar and upload to AWS S3 for an unsupported OS"
               exit
             fi
           fi

@@ -9,7 +9,7 @@ This repository is Whist's fork of mimalloc, with a few modifications. We forked
 
 - Added `mlock` usage in `_mi_os_commitx` and `munlock` usage in `_mi_os_commitx`, `mi_os_mem_free`, `mi_os_resetx`, for macOS
 
-- Created a GitHub Actions workflows, `build-and-publish-mimalloc.yml`, to build, test and publish on macOS
+- Created a GitHub Actions workflow, `build-and-publish-mimalloc.yml`, to build, test and publish on macOS
 
 ## Development
 
@@ -27,7 +27,7 @@ git clone https://github.com/whisthq/mimalloc && cd mimalloc
 git remote add upstream https://github.com/microsoft/mimalloc
 ```
 
-3. Disable pushing to upstream mimalloc (ensures that git will push to `whisthq/mimalloc` instead of erroring out)
+3. Disable pushing to upstream mimalloc (ensures that git will push to [`whisthq/mimalloc`](https://github.com/whisthq/mimalloc) instead of erroring out)
 
 ```
 git remote set-url --push upstream DISABLE
