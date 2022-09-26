@@ -169,6 +169,6 @@ jobs:
         run: |
           from notifications.slack_bot import slack_post
           SLACK_WEBHOOK = "${{ secrets.SLACK_HOOKS_ENDPOINT_PROD }}"
-          TITLE = "Whist mimalloc library deployed"
-          BODY = f"Whist `mimalloc` static library deployed to Production via upload to AWS S3 (<https://github.com/whisthq/mimalloc/actions/runs/${{ github.run_id }} | see logs>)"
+          TITLE = ":memo: Whist mimalloc Library Deployed :memo:"
+          BODY = f"Whist `mimalloc` Static Library Deployed to Production via upload to AWS S3 (<https://github.com/whisthq/mimalloc/actions/runs/${{ github.run_id }} | see logs>)"
           slack_post(slack_webhook=SLACK_WEBHOOK, title=TITLE, body=BODY)
