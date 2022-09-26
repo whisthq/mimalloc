@@ -7,7 +7,7 @@ This repository is Whist's fork of mimalloc, with a few modifications. We forked
 
 ## Whist Changelog
 
-- Added `mlock` usage in `_mi_os_commitx` and `munlock` usage in `_mi_os_commitx`, `mi_os_mem_free`, `mi_os_resetx`, for macOS
+- Added `mlock` usage in `_mi_os_commitx` and `mi_unix_mmap` and `munlock` usage in `_mi_os_commitx`, `mi_os_mem_free`, `mi_os_resetx`, for macOS
 
 - Created a GitHub Actions workflow, `build-and-publish-mimalloc.yml`, to build, test and publish on macOS
 

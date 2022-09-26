@@ -68,12 +68,12 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MLOCK(addr, size) \
     uintptr_t aligned_addr = _mi_align_down((uintptr_t)addr, os_page_size); \
     size_t actual_size = size + ((uintptr_t)addr - aligned_addr); \
-    mlock((void*)aligned_addr, actual_size);
+    mlock((void*)aligned_addr, actual_size)
 
 #define MUNLOCK(addr, size) \
     uintptr_t aligned_addr = _mi_align_down((uintptr_t)addr, os_page_size); \
     size_t actual_size = size + ((uintptr_t)addr - aligned_addr); \
-    munlock((void*)aligned_addr, actual_size);
+    munlock((void*)aligned_addr, actual_size)
 
 /* -----------------------------------------------------------
   Initialization.
@@ -713,6 +713,7 @@ static void* mi_unix_mmap(void* addr, size_t size, size_t try_alignment, int pro
   if (p == NULL) {
     _mi_warning_message("unable to allocate OS memory (%zu bytes, error code: %i, address: %p, large only: %d, allow large: %d)\n", size, errno, addr, large_only, allow_large);
   }
+  MLOCK(p, size);
   return p;
 }
 #endif
