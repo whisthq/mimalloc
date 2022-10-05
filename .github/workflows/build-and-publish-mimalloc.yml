@@ -63,6 +63,8 @@ jobs:
 
       # Note, mimalloc makes use of aligned_alloc, which is only available on macOS 10.15 and and above. We deem
       # this version requirement acceptable, so we don't guard it.
+      # Note: we compile mimalloc WITHOUT the system malloc override and apply the override on the protocol side
+      # This allows for more flexibility in future mimalloc use
       - name: Build mimalloc on macOS
         if: runner.os == 'macOS'
         env:
@@ -73,12 +75,12 @@ jobs:
 
           if [[ "${{ matrix.config.name }}" == "macOS (x64)" ]]; then
             # configure Cmake and build mimalloc for native compilation on x64 systems
-            cmake ../.. \
+            cmake -D MI_OSX_INTERPOSE=OFF -D MI_OSX_ZONE=OFF ../.. \
                   -D CMAKE_OSX_DEPLOYMENT_TARGET="10.15" \
                   -D CMAKE_OSX_SYSROOT="${{ env.CMAKE_OSX_SYSROOT }}"
           elif [[ "${{ matrix.config.name }}" == "macOS (arm64)" ]]; then
             # configure Cmake and build mimalloc for cross-compilation to arm64 from x64 systems
-            cmake ../.. \
+            cmake -D MI_OSX_INTERPOSE=OFF -D MI_OSX_ZONE=OFF ../.. \
                   -D CMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
                   -D CMAKE_OSX_ARCHITECTURES="arm64" \
                   -D CMAKE_OSX_SYSROOT="${{ env.CMAKE_OSX_SYSROOT }}"

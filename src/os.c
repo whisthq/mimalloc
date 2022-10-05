@@ -48,6 +48,9 @@ terms of the MIT license. A copy of the license can be found in the file
 #endif
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
+#include <errno.h>
+#include <string.h>
+#include <stdio.h>
 #if !TARGET_IOS_IPHONE && !TARGET_IOS_SIMULATOR
 #include <mach/vm_statistics.h>
 #endif
@@ -61,6 +64,26 @@ terms of the MIT license. A copy of the license can be found in the file
 #include <sys/sysctl.h>
 #endif
 #endif
+
+#ifndef MLOCK
+// mlock macros
+// we need to align the address only to page size, not the size
+// but we still have to compute the new size once we align the address
+#define MLOCK(addr, size) { \
+    uintptr_t aligned_addr = _mi_align_down((uintptr_t)addr, os_page_size); \
+    size_t actual_size = size + ((uintptr_t)addr - aligned_addr); \
+    int ret = mlock((void*)aligned_addr, actual_size); \
+    if (ret == -1) { \
+        printf("mlock failed with error %s\n", strerror(errno)); \
+    } \
+}
+#endif
+
+#define MUNLOCK(addr, size) { \
+    uintptr_t aligned_addr = _mi_align_down((uintptr_t)addr, os_page_size); \
+    size_t actual_size = size + ((uintptr_t)addr - aligned_addr); \
+    munlock((void*)aligned_addr, actual_size); \
+} \
 
 /* -----------------------------------------------------------
   Initialization.
@@ -934,6 +957,11 @@ static bool mi_os_commitx(void* addr, size_t size, bool commit, bool conservativ
     if (err != 0) { err = errno; }
   } 
   else {
+#if defined(__APPLE__)
+      // NOTE: as far as I (Serina) can tell, commit and decommit are not called because mi_option_reset_decommits is turned off.
+      // I'm leaving this here for future reference, though
+      // MUNLOCK(start, csize);
+#endif
     #if defined(MADV_DONTNEED) && MI_DEBUG == 0 && MI_SECURE == 0
     // decommit: use MADV_DONTNEED as it decreases rss immediately (unlike MADV_FREE)
     // (on the other hand, MADV_FREE would be good enough.. it is just not reflected in the stats :-( )
@@ -984,7 +1012,12 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   if (csize == 0) return true;  // || _mi_os_is_huge_reserved(addr)
   if (reset) _mi_stat_increase(&stats->reset, csize);
         else _mi_stat_decrease(&stats->reset, csize);
-  if (!reset) return true; // nothing to do on unreset!
+  if (!reset) {
+#if defined(__APPLE__)
+    MLOCK(addr, csize);
+#endif
+      return true; // nothing to do on unreset!
+  }
 
   #if (MI_DEBUG>1)
   if (MI_SECURE==0) {
@@ -1003,11 +1036,16 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   #endif
   if (p != start) return false;
 #else
+#if defined(__APPLE__)
+  MUNLOCK(start, csize);
+#endif
 #if defined(MADV_FREE)
   static _Atomic(size_t) advice = MI_ATOMIC_VAR_INIT(MADV_FREE);
   int oadvice = (int)mi_atomic_load_relaxed(&advice);
   int err;
-  while ((err = mi_madvise(start, csize, oadvice)) != 0 && errno == EAGAIN) { errno = 0;  };
+  while ((err = mi_madvise(start, csize, oadvice)) != 0 && errno == EAGAIN) {
+      errno = 0;
+  };
   if (err != 0 && errno == EINVAL && oadvice == MADV_FREE) {  
     // if MADV_FREE is not supported, fall back to MADV_DONTNEED from now on
     mi_atomic_store_release(&advice, (size_t)MADV_DONTNEED);
