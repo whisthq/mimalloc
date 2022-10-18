@@ -70,20 +70,18 @@ terms of the MIT license. A copy of the license can be found in the file
 // we need to align the address only to page size, not the size
 // but we still have to compute the new size once we align the address
 #define MLOCK(addr, size) { \
-    uintptr_t aligned_addr = _mi_align_down((uintptr_t)addr, os_page_size); \
-    size_t actual_size = size + ((uintptr_t)addr - aligned_addr); \
-    int ret = mlock((void*)aligned_addr, actual_size); \
+    mi_assert(addr % os_page_size == 0); \
+    int ret = mlock(addr, size); \
     if (ret == -1) { \
-        printf("mlock failed with error %s\n", strerror(errno)); \
+        _mi_warning_message("mlock failed with error %s\n", strerror(errno)); \
     } \
 }
 #endif
 
 #define MUNLOCK(addr, size) { \
-    uintptr_t aligned_addr = _mi_align_down((uintptr_t)addr, os_page_size); \
-    size_t actual_size = size + ((uintptr_t)addr - aligned_addr); \
-    munlock((void*)aligned_addr, actual_size); \
-} \
+    mi_assert(addr % os_page_size == 0); \
+    munlock(addr, size); \
+}
 
 /* -----------------------------------------------------------
   Initialization.
@@ -1014,7 +1012,7 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
         else _mi_stat_decrease(&stats->reset, csize);
   if (!reset) {
 #if defined(__APPLE__)
-    MLOCK(addr, csize);
+    MLOCK(start, csize);
 #endif
       return true; // nothing to do on unreset!
   }
