@@ -238,6 +238,7 @@ static void mi_page_reset(mi_segment_t* segment, mi_page_t* page, size_t size, m
   page->is_reset = true;
   mi_assert_internal(size <= psize);
   size_t reset_size = ((size == 0 || size > psize) ? psize : size);
+    // printf("MI_PAGE_RESET on page %p start %p size %zx\n", page, start, reset_size);
   if (reset_size > 0) _mi_mem_reset(start, reset_size, tld->os);
 }
 
@@ -251,6 +252,7 @@ static bool mi_page_unreset(mi_segment_t* segment, mi_page_t* page, size_t size,
   size_t psize;
   uint8_t* start = mi_segment_raw_page_start(segment, page, &psize);
   size_t unreset_size = (size == 0 || size > psize ? psize : size);
+    // printf("MI_PAGE_UNRESET on page %p start %p size %zx\n", page, start, unreset_size);
   bool is_zero = false;
   bool ok = true;
   if (unreset_size > 0) {
@@ -505,6 +507,7 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
   if (page_kind == MI_PAGE_HUGE) {
     mi_assert_internal(page_shift == MI_SEGMENT_SHIFT && required > 0);
     capacity = 1;
+    // printf("MI_SEGMENT_INIT called, capacity %d, huge page\n");
   }
   else {
     mi_assert_internal(required == 0);
@@ -512,6 +515,7 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
     capacity = MI_SEGMENT_SIZE / page_size;
     mi_assert_internal(MI_SEGMENT_SIZE % page_size == 0);
     mi_assert_internal(capacity >= 1 && capacity <= MI_SMALL_PAGES_PER_SEGMENT);
+    // printf("MI_SEGMENT_INIT called, capacity %d, page_size %zx\n", capacity, page_size);
   }
   size_t info_size;
   size_t pre_size;
@@ -530,6 +534,7 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
 
   // Try to get it from our thread local cache first
   if (segment != NULL) {
+    // printf("MI_SEGMENT_INIT called, got a segment from the cache\n");
     // came from cache
     mi_assert_internal(segment->segment_size == segment_size);
     if (page_kind <= MI_PAGE_MEDIUM && segment->page_kind == page_kind && segment->segment_size == segment_size) {
@@ -547,9 +552,11 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
         mi_page_t* page = &segment->pages[i];
         if (page->is_reset) {
           if (!commit && mi_option_is_enabled(mi_option_reset_decommits)) {
+              // printf("MI_SEGMENT_INIT flipping page->is_reset flag\n");
             page->is_reset = false;
           }
           else {
+              // printf("MI_SEGMENT_INIT unrestting pages\n");
             mi_page_unreset(segment, page, 0, tld);  // todo: only unreset the part that was reset? (instead of the full page)
           }
         }
@@ -571,6 +578,7 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
     bool   mem_large = (!eager_delayed && (MI_SECURE==0)); // only allow large OS pages once we are no longer lazy
     bool   is_pinned = false;
     segment = (mi_segment_t*)_mi_mem_alloc_aligned(segment_size, MI_SEGMENT_SIZE, &commit, &mem_large, &is_pinned, &is_zero, &memid, os_tld);
+      // printf("MI_SEGMENT_INIT allocating from OS at %p, size %zx\n", segment, segment_size);
     if (segment == NULL) return NULL;  // failed to allocate
     if (!commit) {
       // ensure the initial info is committed
@@ -601,7 +609,10 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
     for (size_t i = 0; i < capacity; i++) {
       mi_assert_internal(i <= 255);
       segment->pages[i].segment_idx = (uint8_t)i;
-      segment->pages[i].is_reset = false;
+      // manually unreset everything instead of setting is_reset = false immediately
+      // this will mlock t
+      segment->pages[i].is_reset = true;
+      mi_page_unreset(segment, &segment->pages[i], 0, tld);
       segment->pages[i].is_committed = commit;
       segment->pages[i].is_zero_init = is_zero;
     }
@@ -1043,6 +1054,7 @@ static bool mi_segment_check_free(mi_segment_t* segment, size_t block_size, bool
 // Reclaim a segment; returns NULL if the segment was freed
 // set `right_page_reclaimed` to `true` if it reclaimed a page of the right `block_size` that was not full.
 static mi_segment_t* mi_segment_reclaim(mi_segment_t* segment, mi_heap_t* heap, size_t requested_block_size, bool* right_page_reclaimed, mi_segments_tld_t* tld) {
+    // printf("MI_SEGMENT_RECLAIM called\n");
   mi_assert_internal(mi_atomic_load_ptr_relaxed(mi_segment_t, &segment->abandoned_next) == NULL);
   if (right_page_reclaimed != NULL) { *right_page_reclaimed = false; }
 
@@ -1056,6 +1068,7 @@ static mi_segment_t* mi_segment_reclaim(mi_segment_t* segment, mi_heap_t* heap, 
   for (size_t i = 0; i < segment->capacity; i++) {
     mi_page_t* page = &segment->pages[i];
     if (page->segment_in_use) {
+        // printf("MI_SEGMENT_RECLAIM page->segment_in_use\n");
       mi_assert_internal(!page->is_reset);
       mi_assert_internal(page->is_committed);
       mi_assert_internal(mi_page_not_in_queue(page, tld));
@@ -1070,10 +1083,12 @@ static mi_segment_t* mi_segment_reclaim(mi_segment_t* segment, mi_heap_t* heap, 
       // TODO: should we not collect again given that we just collected in `check_free`?
       _mi_page_free_collect(page, false); // ensure used count is up to date
       if (mi_page_all_free(page)) {
+          // printf("MI_SEGMENT_RECLAIM clearing page\n");
         // if everything free already, clear the page directly
         mi_segment_page_clear(segment, page, true, tld);  // reset is ok now
       }
       else {
+        // printf("MI_SEGMENT_RECLAIM reclaim into heap\n");
         // otherwise reclaim it into the heap
         _mi_page_reclaim(heap, page);
         if (requested_block_size == page->xblock_size && mi_page_has_any_available(page)) {

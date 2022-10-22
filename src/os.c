@@ -72,6 +72,7 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MLOCK(addr, size) { \
     mi_assert(addr % os_page_size == 0); \
     int ret = mlock(addr, size); \
+    // printf("MLOCK at %p size %zx\n", addr, size); \
     if (ret == -1) { \
         _mi_warning_message("mlock failed with error %s\n", strerror(errno)); \
     } \
@@ -81,6 +82,7 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MUNLOCK(addr, size) { \
     mi_assert(addr % os_page_size == 0); \
     munlock(addr, size); \
+    // printf("MUNLOCK at %p size %zx\n", addr, size); \
 }
 
 /* -----------------------------------------------------------
@@ -716,6 +718,7 @@ static void* mi_unix_mmap(void* addr, size_t size, size_t try_alignment, int pro
   if (p == NULL) {
     _mi_warning_message("unable to allocate OS memory (%zu bytes, error code: %i, address: %p, large only: %d, allow large: %d)\n", size, errno, addr, large_only, allow_large);
   }
+    printf("MMAP %p size %zx\n", p, size);
   return p;
 }
 #endif
@@ -908,6 +911,7 @@ static void mi_mprotect_hint(int err) {
 // Usually commit is aligned liberal, while decommit is aligned conservative.
 // (but not for the reset version where we want commit to be conservative as well)
 static bool mi_os_commitx(void* addr, size_t size, bool commit, bool conservative, bool* is_zero, mi_stats_t* stats) {
+    printf("MI_OS_COMMITX called on %p size %zx\n", addr, size);
   // page align in the range, commit liberally, decommit conservative
   if (is_zero != NULL) { *is_zero = false; }
   size_t csize;
@@ -952,6 +956,11 @@ static bool mi_os_commitx(void* addr, size_t size, bool commit, bool conservativ
   if (commit) {
     // commit: ensure we can access the area    
     err = mprotect(start, csize, (PROT_READ | PROT_WRITE));
+#if defined(__APPLE__)
+      // NOTE: as far as I (Serina) can tell, commit and decommit are not called because mi_option_reset_decommits is turned off.
+      // I'm leaving this here for future reference, though
+      MLOCK(start, csize);
+#endif
     if (err != 0) { err = errno; }
   } 
   else {
