@@ -611,8 +611,12 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
       segment->pages[i].segment_idx = (uint8_t)i;
       // manually unreset everything instead of setting is_reset = false immediately
       // this will mlock t
-      segment->pages[i].is_reset = true;
-      mi_page_unreset(segment, &segment->pages[i], 0, tld);
+      if (capacity > 1) {
+          segment->pages[i].is_reset = true;
+          mi_page_unreset(segment, &segment->pages[i], 0, tld);
+      } else {
+          segment->pages[i].is_reset = false;
+      }
       segment->pages[i].is_committed = commit;
       segment->pages[i].is_zero_init = is_zero;
     }

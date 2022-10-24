@@ -14,6 +14,8 @@ terms of the MIT license. A copy of the license can be found in the file
 
 #include <string.h>  // memset, strlen
 #include <stdlib.h>  // malloc, exit
+#include <sys/mman.h> // mlock
+
 
 #define MI_IN_ALLOC_C
 #include "alloc-override.c"
@@ -68,6 +70,7 @@ extern inline void* _mi_page_malloc(mi_heap_t* heap, mi_page_t* page, size_t siz
 
   return block;
 }
+#include <stdio.h>
 
 // allocate a small block
 extern inline mi_decl_restrict void* mi_heap_malloc_small(mi_heap_t* heap, size_t size) mi_attr_noexcept {
@@ -88,6 +91,7 @@ extern inline mi_decl_restrict void* mi_heap_malloc_small(mi_heap_t* heap, size_
     mi_heap_stat_increase(heap, malloc, mi_usable_size(p));
   }
   #endif
+printf("MI_HEAP_MALLOC_SMALL returned %p size %zx\n", p, mi_usable_size(p));
   return p;
 }
 
@@ -111,6 +115,19 @@ extern inline mi_decl_restrict void* mi_heap_malloc(mi_heap_t* heap, size_t size
       mi_heap_stat_increase(heap, malloc, mi_usable_size(p));
     }
     #endif
+    // SERINA: check if the allocation is "large". If so, we're wasting 
+    // memory by mlock'ing a 4mb page, so it's better just to mlock the large allocation.
+    size_t actual_size = mi_usable_size(p); 
+    size_t os_page_size = _mi_os_page_size();
+    uintptr_t calc_p = (uintptr_t)p;
+    void* mlock_p = (void*)(calc_p - (calc_p % os_page_size));
+    size_t mlock_size = actual_size + (calc_p % os_page_size);
+    if (actual_size > (2 << 16)) {
+        // mlock this allocation
+        mlock(mlock_p, mlock_size);
+        printf("MLOCK %p %zx\n", mlock_p, mlock_size);
+    }
+    printf("MI_HEAP_MALLOC returned %p size %zx\n", p, mi_usable_size(p));
     return p;
   }
 }
