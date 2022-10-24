@@ -507,7 +507,7 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
   if (page_kind == MI_PAGE_HUGE) {
     mi_assert_internal(page_shift == MI_SEGMENT_SHIFT && required > 0);
     capacity = 1;
-    // printf("MI_SEGMENT_INIT called, capacity %d, huge page\n");
+    // printf("MI_SEGMENT_INIT called, capacity %d, huge page\n", capacity);
   }
   else {
     mi_assert_internal(required == 0);

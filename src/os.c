@@ -1019,8 +1019,8 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
         else _mi_stat_decrease(&stats->reset, csize);
   if (!reset) {
 #if defined(__APPLE__)
-      // refuse an unreset if the size is too large, it should be handled by mi_heap_malloc on large allocations
-    if (csize <= (2 << 16)) {
+      // refuse an unreset if the size is 4mb, it should be handled by mi_heap_malloc on large allocations
+    if (csize < (1 << 22)) {
         MLOCK(start, csize);
     }
 #endif

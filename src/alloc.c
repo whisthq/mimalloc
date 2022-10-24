@@ -125,9 +125,9 @@ extern inline mi_decl_restrict void* mi_heap_malloc(mi_heap_t* heap, size_t size
     if (actual_size > (2 << 16)) {
         // mlock this allocation
         mlock(mlock_p, mlock_size);
-        printf("MLOCK %p %zx\n", mlock_p, mlock_size);
+        // printf("MLOCK %p %zx\n", mlock_p, mlock_size);
     }
-    printf("MI_HEAP_MALLOC returned %p size %zx\n", p, mi_usable_size(p));
+    // printf("MI_HEAP_MALLOC returned %p size %zx\n", p, mi_usable_size(p));
     return p;
   }
 }
