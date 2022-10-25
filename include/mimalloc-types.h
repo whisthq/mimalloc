@@ -67,6 +67,8 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MI_ENCODE_FREELIST  1
 #endif
 
+// SERINA: turn mlock logging on and off
+#define MLOCK_LOG false
 
 // ------------------------------------------------------
 // Platform specific values

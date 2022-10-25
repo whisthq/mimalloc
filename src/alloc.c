@@ -91,7 +91,9 @@ extern inline mi_decl_restrict void* mi_heap_malloc_small(mi_heap_t* heap, size_
     mi_heap_stat_increase(heap, malloc, mi_usable_size(p));
   }
   #endif
+#if MLOCK_LOG
 printf("MI_HEAP_MALLOC_SMALL returned %p size %zx\n", p, mi_usable_size(p));
+#endif
   return p;
 }
 
@@ -120,14 +122,18 @@ extern inline mi_decl_restrict void* mi_heap_malloc(mi_heap_t* heap, size_t size
     size_t actual_size = mi_usable_size(p); 
     size_t os_page_size = _mi_os_page_size();
     uintptr_t calc_p = (uintptr_t)p;
-    void* mlock_p = (void*)(calc_p - (calc_p % os_page_size));
+    void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
     size_t mlock_size = actual_size + (calc_p % os_page_size);
     if (actual_size > (2 << 16)) {
         // mlock this allocation
         mlock(mlock_p, mlock_size);
-        // printf("MLOCK %p %zx\n", mlock_p, mlock_size);
+#if MLOCK_LOG
+        printf("MLOCK %p %zx\n", mlock_p, mlock_size);
+#endif
     }
-    // printf("MI_HEAP_MALLOC returned %p size %zx\n", p, mi_usable_size(p));
+#if MLOCK_LOG
+    printf("MI_HEAP_MALLOC returned %p size %zx\n", p, mi_usable_size(p));
+#endif
     return p;
   }
 }
