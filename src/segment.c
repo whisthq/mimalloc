@@ -9,7 +9,10 @@ terms of the MIT license. A copy of the license can be found in the file
 #include "mimalloc-atomic.h"
 
 #include <string.h>  // memset
+#include <sys/mman.h> // mlock
+#if MLOCK_LOG
 #include <stdio.h>
+#endif
 
 #define MI_PAGE_HUGE_ALIGN  (256*1024)
 
@@ -229,6 +232,31 @@ static void mi_segment_protect(mi_segment_t* segment, bool protect, mi_os_tld_t*
   Page reset
 ----------------------------------------------------------- */
 
+// separate munlocking functions
+// munlock a page but do NOT reset it: this is for use in freeing a segment for reuse
+static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size, mi_segments_tld_t* tld)
+{
+  if (segment->mem_is_pinned || page->segment_in_use || !page->is_committed || page->is_reset) return;
+  size_t psize;
+  uint8_t* start = mi_segment_raw_page_start(segment, page, &psize);
+  size_t unreset_size = (size == 0 || size > psize ? psize : size);
+#if MLOCK_LOG
+    printf("MI_PAGE_MUNLOCK on page %p start %p size %zx\n", page, start, unreset_size);
+#endif
+  if (unreset_size > 0) {
+      // align to page size and munlock
+    size_t os_page_size = _mi_os_page_size();
+    uintptr_t calc_p = (uintptr_t)start;
+    void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
+    size_t mlock_size = unreset_size + (calc_p % os_page_size);
+    // mlock this allocation
+    munlock(mlock_p, mlock_size);
+#if MLOCK_LOG
+    printf("MUNLOCK %p %zx\n", mlock_p, mlock_size);
+#endif
+  }
+}
+
 static void mi_page_reset(mi_segment_t* segment, mi_page_t* page, size_t size, mi_segments_tld_t* tld) {
   mi_assert_internal(page->is_committed);
   if (!mi_option_is_enabled(mi_option_page_reset)) return;
@@ -336,6 +364,8 @@ static void mi_pages_reset_remove_all_in_segment(mi_segment_t* segment, bool for
     mi_page_t* page = &segment->pages[i];
     if (!page->segment_in_use && page->is_committed && !page->is_reset) {
       mi_pages_reset_remove(page, tld);
+      // Serina: we must munlock these pages even if they are not reset, to prevent nested mlocks when the segment is reused
+      mi_page_munlock(segment, page, 0, tld);
       if (force_reset) {
         mi_page_reset(segment, page, 0, tld);
       }
@@ -668,6 +698,7 @@ static void mi_segment_free(mi_segment_t* segment, bool force, mi_segments_tld_t
   MI_UNUSED(force);
   mi_assert(segment != NULL);
   // note: don't reset pages even on abandon as the whole segment is freed? (and ready for reuse)
+  // SERINA: But do munlock pages, since we don't want to unnecessarily nest mlocks (see mi_pages_reset_remove_all_in_segment
   bool force_reset = (force && mi_option_is_enabled(mi_option_abandoned_page_reset));
   mi_pages_reset_remove_all_in_segment(segment, force_reset, tld);
   mi_segment_remove_from_free_queue(segment,tld);
