@@ -120,11 +120,11 @@ extern inline mi_decl_restrict void* mi_heap_malloc(mi_heap_t* heap, size_t size
     // SERINA: check if the allocation is "large". If so, we're wasting 
     // memory by mlock'ing a 4mb page, so it's better just to mlock the large allocation.
     size_t actual_size = mi_usable_size(p); 
-    size_t os_page_size = _mi_os_page_size();
-    uintptr_t calc_p = (uintptr_t)p;
-    void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
-    size_t mlock_size = actual_size + (calc_p % os_page_size);
-    if (actual_size > (2 << 16)) {
+    if (actual_size > (2 << MI_SMALL_PAGE_SHIFT)) {
+        size_t os_page_size = _mi_os_page_size();
+        uintptr_t calc_p = (uintptr_t)p;
+        void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
+        size_t mlock_size = actual_size + (calc_p % os_page_size);
         // mlock this allocation
         mlock(mlock_p, mlock_size);
 #if MLOCK_LOG
@@ -508,6 +508,21 @@ void mi_free(void* p) mi_attr_noexcept
   mi_threadid_t tid = _mi_thread_id();
   mi_page_t* const page = _mi_segment_page_of(segment, p);
   mi_block_t* const block = (mi_block_t*)p;
+
+    // SERINA: check if the allocation is "large". Because we mlock large allocations on malloc, we should munlock them on free
+    // Otherwise, we might cause nested mlocks when mimalloc reuses these pages
+    size_t actual_size = mi_usable_size(p); 
+    if (actual_size > (2 << MI_SMALL_PAGE_SHIFT)) {
+        size_t os_page_size = _mi_os_page_size();
+        uintptr_t calc_p = (uintptr_t)p;
+        void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
+        size_t mlock_size = actual_size + (calc_p % os_page_size);
+        // mlock this allocation
+        munlock(mlock_p, mlock_size);
+#if MLOCK_LOG
+        printf("MUNLOCK %p %zx\n", mlock_p, mlock_size);
+#endif
+    }
   
   if (mi_likely(tid == mi_atomic_load_relaxed(&segment->thread_id) && page->flags.full_aligned == 0)) {  // the thread id matches and it is not a full page, nor has aligned blocks
     // local, and not full or aligned
