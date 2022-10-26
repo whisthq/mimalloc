@@ -1,4 +1,5 @@
 set(MIMALLOC_PATH "/Users/serinahu/Documents/Whist/whist/protocol/build/lib/64/mimalloc/Darwin")
+include_directories(SYSTEM "/Users/serinahu/Documents/Whist/mimalloc/include")
 find_library(LIB_MIMALLOC
     NAMES mimalloc
     PATHS ${MIMALLOC_PATH}
