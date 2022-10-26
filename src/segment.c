@@ -267,7 +267,7 @@ static void mi_page_reset(mi_segment_t* segment, mi_page_t* page, size_t size, m
   mi_assert_internal(size <= psize);
   size_t reset_size = ((size == 0 || size > psize) ? psize : size);
 #if MLOCK_LOG
-    printf("MI_PAGE_RESET on page %p start %p size %zx\n", page, start, reset_size);
+    printf("MI_PAGE_RESET on start %p size %zx\n", start, reset_size);
 #endif
   if (reset_size > 0) _mi_mem_reset(start, reset_size, tld->os);
 }
@@ -283,7 +283,7 @@ static bool mi_page_unreset(mi_segment_t* segment, mi_page_t* page, size_t size,
   uint8_t* start = mi_segment_raw_page_start(segment, page, &psize);
   size_t unreset_size = (size == 0 || size > psize ? psize : size);
 #if MLOCK_LOG
-    printf("MI_PAGE_UNRESET on page %p start %p size %zx\n", page, start, unreset_size);
+    printf("MI_PAGE_UNRESET on start %p size %zx\n", start, unreset_size);
 #endif
   bool is_zero = false;
   bool ok = true;
