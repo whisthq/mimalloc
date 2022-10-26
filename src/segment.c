@@ -621,7 +621,8 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
       segment->pages[i].segment_idx = (uint8_t)i;
       // manually unreset everything instead of setting is_reset = false immediately
       // this will mlock the first page of the segment
-      if (capacity > 1) {
+      // only do this if the page is not large or huge, since otherwise we're wasting memory by mlocking 4mb
+      if (page_kind <= MI_PAGE_MEDIUM) {
           segment->pages[i].is_reset = true;
           mi_page_unreset(segment, &segment->pages[i], 0, tld);
       } else {
