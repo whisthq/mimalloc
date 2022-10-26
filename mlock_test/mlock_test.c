@@ -20,7 +20,7 @@ int main() {
     printf("p8 %p\n", p8);
     // alternate small and big-ish allocations
     for (int i = 0; i < 10; i++) {
-        void* small1 = malloc(50); // 50b
+        void* small1 = malloc(0x60); // 96b
         printf("small1 %p\n", small1);
         free(small1);
         void* p5 = malloc(1 << 12); // 4kb

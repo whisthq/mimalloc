@@ -1,4 +1,4 @@
-set(MIMALLOC_PATH "Users/serinahu/Documents/Whist/whist/protocol/build/lib/64/mimalloc/Darwin")
+set(MIMALLOC_PATH "/Users/serinahu/Documents/Whist/whist/protocol/build/lib/64/mimalloc/Darwin")
 find_library(LIB_MIMALLOC
     NAMES mimalloc
     PATHS ${MIMALLOC_PATH}
@@ -11,5 +11,5 @@ find_library(LIB_MIMALLOC
 message(STATUS "Found mimalloc lib: ${LIB_MIMALLOC}")
 
 add_executable(mlock_test mlock_test.c)
-target_link_libraries(main PUBLIC ${LIB_MIMALLOC})
+target_link_libraries(mlock_test PUBLIC ${LIB_MIMALLOC})
 
