@@ -234,7 +234,7 @@ static void mi_segment_protect(mi_segment_t* segment, bool protect, mi_os_tld_t*
 
 // separate munlocking functions
 // munlock a page but do NOT reset it: this is for use in freeing a segment for reuse
-static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size, mi_segments_tld_t* tld)
+static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
 {
   if (segment->mem_is_pinned || page->segment_in_use || !page->is_committed || page->is_reset) return;
   size_t psize;

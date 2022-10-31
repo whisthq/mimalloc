@@ -1022,7 +1022,7 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   if (!reset) {
 #if defined(__APPLE__)
       // refuse to mlock an unreset if the size is 4mb, it should be handled by mi_heap_malloc on large allocations
-    if (csize < MI_LARGE_PAGE_SIZE)) {
+    if (csize < MI_LARGE_PAGE_SIZE) {
         // we want to mlock and munlock liberally! 
         // even if the address is unaligned, it lives in a segment whose allocation is aligned, so we are still mlocking allocated memory
         size_t mlock_size;
