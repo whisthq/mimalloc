@@ -917,7 +917,11 @@ static void mi_mprotect_hint(int err) {
 // Usually commit is aligned liberal, while decommit is aligned conservative.
 // (but not for the reset version where we want commit to be conservative as well)
 static bool mi_os_commitx(void* addr, size_t size, bool commit, bool conservative, bool* is_zero, mi_stats_t* stats) {
-    // printf("MI_OS_COMMITX called on %p size %zx\n", addr, size);
+#if MLOCK_LOG
+  printf("MI_OS_COMMITX called on %p size %zx\n", addr, size);
+#endif
+  // NOTE: as far as I (Serina) can tell by running the protocol for ~1hr, commit and decommit are not called.
+  // So I haven't inserted mlock and munlocks here.
   // page align in the range, commit liberally, decommit conservative
   if (is_zero != NULL) { *is_zero = false; }
   size_t csize;
@@ -962,19 +966,9 @@ static bool mi_os_commitx(void* addr, size_t size, bool commit, bool conservativ
   if (commit) {
     // commit: ensure we can access the area    
     err = mprotect(start, csize, (PROT_READ | PROT_WRITE));
-#if defined(__APPLE__)
-      // NOTE: as far as I (Serina) can tell, commit and decommit are not called because mi_option_reset_decommits is turned off.
-      // I'm leaving this here for future reference, though
-      MLOCK(start, csize);
-#endif
     if (err != 0) { err = errno; }
   } 
   else {
-#if defined(__APPLE__)
-      // NOTE: as far as I (Serina) can tell, commit and decommit are not called because mi_option_reset_decommits is turned off.
-      // I'm leaving this here for future reference, though
-      // MUNLOCK(start, csize);
-#endif
     #if defined(MADV_DONTNEED) && MI_DEBUG == 0 && MI_SECURE == 0
     // decommit: use MADV_DONTNEED as it decreases rss immediately (unlike MADV_FREE)
     // (on the other hand, MADV_FREE would be good enough.. it is just not reflected in the stats :-( )
