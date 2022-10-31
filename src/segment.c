@@ -365,7 +365,7 @@ static void mi_pages_reset_remove_all_in_segment(mi_segment_t* segment, bool for
     if (!page->segment_in_use && page->is_committed && !page->is_reset) {
       mi_pages_reset_remove(page, tld);
       // Serina: we must munlock these pages even if they are not reset, to prevent nested mlocks when the segment is reused
-      mi_page_munlock(segment, page, 0, tld);
+      mi_page_munlock(segment, page, 0);
       if (force_reset) {
         mi_page_reset(segment, page, 0, tld);
       }
