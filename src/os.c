@@ -82,7 +82,7 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MUNLOCK(addr, size) { \
     printf("MUNLOCK %p %zx\n", addr, size); \
     mi_assert((uintptr_t) addr % os_page_size == 0); \
-    munlock(addr, size); \
+    int ret = munlock(addr, size); \
     if (MLOCK_LOG) { \
         if (ret != 0) { \
             _mi_warning_message("munlock failed with error %s\n", strerror(errno)); \
