@@ -1036,7 +1036,7 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   if (!reset) {
 #if defined(__APPLE__)
       // refuse to mlock an unreset if the size is 4mb, it should be handled by mi_heap_malloc on large allocations
-    if (csize < (1 << 22)) {
+    if (csize < MI_LARGE_PAGE_SIZE)) {
         // we want to mlock and munlock liberally! 
         // even if the address is unaligned, it lives in a segment whose allocation is aligned, so we are still mlocking allocated memory
         size_t mlock_size;
@@ -1065,9 +1065,11 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   if (p != start) return false;
 #else
 #if defined(__APPLE__)
-  size_t mlock_size;
-  void* mlock_start = mi_os_page_align_areax(false, addr, size, &mlock_size);
-  MUNLOCK(mlock_start, mlock_size);
+  if (csize < MI_LARGE_PAGE_SIZE) {
+    size_t mlock_size;
+    void* mlock_start = mi_os_page_align_areax(false, addr, size, &mlock_size);
+    MUNLOCK(mlock_start, mlock_size);
+  }
 #endif
 #if defined(MADV_FREE)
   static _Atomic(size_t) advice = MI_ATOMIC_VAR_INIT(MADV_FREE);
