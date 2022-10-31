@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <mimalloc.h>
+#include <string.h>
 
 // Run this while turning on MLOCK_LOG, compare the printfs here with the regions of memory MLOCK'ed and MUNLOCK'ed.
 
@@ -20,25 +21,6 @@ int main() {
     void* p4 = malloc(3 << 20); // 3mb -> 5.5 mb
     printf("p4 %p\n", p4);
     free(p4); // this should cause an immediate unreset because it was the only thing on the segment
-
-    printf("Testing munlock with reset_delay\n");
-    // make 20 64kb allocations
-    // free 8 at a time with 1s delays inbetween
-    // should see the pages resetting one by one
-    void* allocs[24];
-    for (int i = 0; i < 24; i++) {
-        void* p6 = malloc(1 << 16); // 64kb
-        allocs[i] = p6;
-        printf("p6 %p\n", p6);
-    }
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 8; j++) {
-            printf("free %p\n", allocs[8 * i + j]);
-            free(allocs[8 * i + j]);
-        }
-        printf("sleeping\n");
-        sleep(1);
-    }
     printf("medium allocations\n");
     void* p7 = malloc(2 << 16); // 128 kb
     printf("p7 %p\n", p7);
