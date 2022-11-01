@@ -120,7 +120,7 @@ extern inline mi_decl_restrict void* mi_heap_malloc(mi_heap_t* heap, size_t size
     // SERINA: check if the allocation is "large". If so, we're wasting 
     // memory by mlock'ing a 4mb page, so it's better just to mlock the large allocation.
     size_t actual_size = mi_usable_size(p); 
-    if (actual_size > (2 << MI_SMALL_PAGE_SHIFT)) {
+    if (actual_size > (1 << (MI_MEDIUM_PAGE_SHIFT - 2))) {
         size_t os_page_size = _mi_os_page_size();
         uintptr_t calc_p = (uintptr_t)p;
         void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
@@ -511,8 +511,9 @@ void mi_free(void* p) mi_attr_noexcept
 
     // SERINA: check if the allocation is "large". Because we mlock large allocations on malloc, we should munlock them on free
     // Otherwise, we might cause nested mlocks when mimalloc reuses these pages
+    // the threshold for moving to the next sized page is if we can't fit 4 allocations into the current page
     size_t actual_size = mi_usable_size(p); 
-    if (actual_size > (2 << MI_SMALL_PAGE_SHIFT)) {
+    if (actual_size > (1 << (MI_MEDIUM_PAGE_SHIFT - 2))) {
         size_t os_page_size = _mi_os_page_size();
         uintptr_t calc_p = (uintptr_t)p;
         void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);

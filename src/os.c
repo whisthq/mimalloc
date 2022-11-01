@@ -70,23 +70,23 @@ terms of the MIT license. A copy of the license can be found in the file
 // we need to align the address only to page size, not the size
 // but we still have to compute the new size once we align the address
 #define MLOCK(addr, size) { \
-    printf("MLOCK %p %zx\n", addr, size); \
+    if (MLOCK_LOG) { \
+        printf("MLOCK %p %zx\n", addr, size); \
+    } \
     mi_assert((uintptr_t) addr % os_page_size == 0); \
     int ret = mlock(addr, size); \
-    if (MLOCK_LOG) { \
-        if (ret != 0) { \
-            _mi_warning_message("mlock failed with error %s\n", strerror(errno)); \
-        } \
+    if (ret != 0) { \
+        _mi_warning_message("mlock failed with error %s\n", strerror(errno)); \
     } \
 }
 #define MUNLOCK(addr, size) { \
-    printf("MUNLOCK %p %zx\n", addr, size); \
+    if (MLOCK_LOG) { \
+        printf("MUNLOCK %p %zx\n", addr, size); \
+    } \
     mi_assert((uintptr_t) addr % os_page_size == 0); \
     int ret = munlock(addr, size); \
-    if (MLOCK_LOG) { \
-        if (ret != 0) { \
-            _mi_warning_message("munlock failed with error %s\n", strerror(errno)); \
-        } \
+    if (ret != 0) { \
+        _mi_warning_message("munlock failed with error %s\n", strerror(errno)); \
     } \
 }
 #endif // MLOCk
