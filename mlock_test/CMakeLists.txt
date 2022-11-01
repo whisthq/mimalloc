@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(mlock_test C CXX)
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-set(MIMALLOC_PATH "/Users/serinahu/Documents/Whist/whist/protocol/build/lib/64/mimalloc/Darwin")
+set(MIMALLOC_PATH "/Users/serinahu/Documents/Whist/mimalloc/out/release")
 include_directories(SYSTEM "/Users/serinahu/Documents/Whist/mimalloc/include")
 find_library(LIB_MIMALLOC
     NAMES mimalloc

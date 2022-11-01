@@ -6,7 +6,6 @@
 
 int main() {
     mi_option_set(mi_option_reset_delay, 1000);
-    mi_option_set(mi_option_abandoned_page_reset, 1);
 
     printf("Testing munlock with reset_delay\n");
     // make 20 64kb allocations

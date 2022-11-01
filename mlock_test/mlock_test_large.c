@@ -6,7 +6,6 @@
 
 int main() {
     mi_option_set(mi_option_reset_delay, 1000);
-    mi_option_set(mi_option_abandoned_page_reset, 1);
 
     printf("Large allocations: alloc all, free all\n");
     int size = 5000;
