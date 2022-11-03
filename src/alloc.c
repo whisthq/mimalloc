@@ -117,8 +117,10 @@ extern inline mi_decl_restrict void* mi_heap_malloc(mi_heap_t* heap, size_t size
       mi_heap_stat_increase(heap, malloc, mi_usable_size(p));
     }
     #endif
-    // SERINA: check if the allocation is "large". If so, we're wasting 
-    // memory by mlock'ing a 4mb page, so it's better just to mlock the large allocation.
+    // WHIST: check if the allocation is "large".
+    // the threshold for moving to the next sized page is if we can't fit 4 allocations into the current page
+    // so anything larger than MEDIUM_PAGE_SIZE/4 causes a large page to be allocated
+    // if so, we should mlock the allocation directly; otherwise we waste >= 3mb per large allocation
     size_t actual_size = mi_usable_size(p); 
     if (actual_size > (1 << (MI_MEDIUM_PAGE_SHIFT - 2))) {
         size_t os_page_size = _mi_os_page_size();
@@ -509,9 +511,10 @@ void mi_free(void* p) mi_attr_noexcept
   mi_page_t* const page = _mi_segment_page_of(segment, p);
   mi_block_t* const block = (mi_block_t*)p;
 
-    // SERINA: check if the allocation is "large". Because we mlock large allocations on malloc, we should munlock them on free
+    // WHIST: check if the allocation is "large". Because we mlock large allocations on malloc, we should munlock them on free
     // Otherwise, we might cause nested mlocks when mimalloc reuses these pages
-    // the threshold for moving to the next sized page is if we can't fit 4 allocations into the current page
+    // This doesn't cause performance issues in Whist -- very few of our allocations are this large, but they impact memory usage quite a bit
+    // See mi_heap_malloc for why we use this as the threshold
     size_t actual_size = mi_usable_size(p); 
     if (actual_size > (1 << (MI_MEDIUM_PAGE_SHIFT - 2))) {
         size_t os_page_size = _mi_os_page_size();
