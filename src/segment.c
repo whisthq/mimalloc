@@ -312,6 +312,9 @@ static bool mi_page_reset_is_expired(mi_page_t* page, mi_msecs_t now) {
 }
 
 static void mi_pages_reset_add(mi_segment_t* segment, mi_page_t* page, mi_segments_tld_t* tld) {
+#if MLOCK_LOG
+    printf("_MI_PAGE_RESET_ADD %p\n", page);
+#endif
   mi_assert_internal(!page->segment_in_use || !page->is_committed);
   mi_assert_internal(mi_page_not_in_queue(page,tld));
   mi_assert_expensive(!mi_pages_reset_contains(page, tld));
@@ -342,6 +345,9 @@ static void mi_pages_reset_add(mi_segment_t* segment, mi_page_t* page, mi_segmen
 }
 
 static void mi_pages_reset_remove(mi_page_t* page, mi_segments_tld_t* tld) {
+#if MLOCK_LOG
+    printf("MI_PAGES_RESET_REMOVE %p\n", page);
+#endif
   if (mi_page_not_in_queue(page,tld)) return;
 
   mi_page_queue_t* pq = &tld->pages_reset;
@@ -725,6 +731,9 @@ static bool mi_segment_has_free(const mi_segment_t* segment) {
 }
 
 static bool mi_segment_page_claim(mi_segment_t* segment, mi_page_t* page, mi_segments_tld_t* tld) {
+#if MLOCK_LOG
+  printf("MI_SEGMENT_PAGE_CLAIM %p\n", page);
+#endif
   mi_assert_internal(_mi_page_segment(page) == segment);
   mi_assert_internal(!page->segment_in_use);
   mi_pages_reset_remove(page, tld);
