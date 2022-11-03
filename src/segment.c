@@ -11,7 +11,7 @@ terms of the MIT license. A copy of the license can be found in the file
 #include <string.h>  // memset
 #include <sys/mman.h> // mlock
 #if MLOCK_LOG
-#include <stdio.h>
+#include <stdio.h> // printf
 #endif
 
 #define MI_PAGE_HUGE_ALIGN  (256*1024)
@@ -232,8 +232,11 @@ static void mi_segment_protect(mi_segment_t* segment, bool protect, mi_os_tld_t*
   Page reset
 ----------------------------------------------------------- */
 
-// separate munlocking functions
+// WHIST: separate munlocking function
 // munlock a page but do NOT reset it: this is for use in freeing a segment for reuse
+// we need this function because sometimes a freed or abandoned segment will not reset its pages before being reused
+// in that case it's possible to mlock the same area of memory multiple times with no munlock
+// this function, inserted in mi_pages_reset_remove_all_in_segment, ensures that pages are always munlock'ed on segment free/abandon
 static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
 {
   if (segment->mem_is_pinned || page->segment_in_use || !page->is_committed || page->is_reset) return;
@@ -250,10 +253,7 @@ static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
     void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
     size_t mlock_size = unreset_size + (calc_p % os_page_size);
     // mlock this allocation
-    munlock(mlock_p, mlock_size);
-#if MLOCK_LOG
-    printf("MUNLOCK %p %zx\n", mlock_p, mlock_size);
-#endif
+    MUNLOCK(mlock_p, mlock_size);
   }
 }
 
