@@ -244,7 +244,7 @@ static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
 #if MLOCK_LOG
     printf("MI_PAGE_MUNLOCK on page %p start %p size %zx\n", page, start, unreset_size);
 #endif
-  if (unreset_size > 0) {
+  if (unreset_size > 0 && unreset_size <= MI_MEDIUM_PAGE_SIZE) {
       // align to page size and munlock
     size_t os_page_size = _mi_os_page_size();
     uintptr_t calc_p = (uintptr_t)start;
