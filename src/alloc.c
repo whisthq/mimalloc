@@ -122,7 +122,7 @@ extern inline mi_decl_restrict void* mi_heap_malloc(mi_heap_t* heap, size_t size
     // so anything larger than MEDIUM_PAGE_SIZE/4 causes a large page to be allocated
     // if so, we should mlock the allocation directly; otherwise we waste >= 3mb per large allocation
     size_t actual_size = mi_usable_size(p); 
-    if (actual_size > (1 << (MI_MEDIUM_PAGE_SHIFT - 2))) {
+    if (actual_size > MI_MEDIUM_OBJ_SIZE_MAX) {
         size_t os_page_size = _mi_os_page_size();
         uintptr_t calc_p = (uintptr_t)p;
         void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
@@ -513,7 +513,7 @@ void mi_free(void* p) mi_attr_noexcept
     // This doesn't cause performance issues in Whist -- very few of our allocations are this large, but they impact memory usage quite a bit
     // See mi_heap_malloc for why we use this as the threshold
     size_t actual_size = mi_usable_size(p); 
-    if (actual_size > (1 << (MI_MEDIUM_PAGE_SHIFT - 2))) {
+    if (actual_size > MI_MEDIUM_OBJ_SIZE_MAX)) {
         size_t os_page_size = _mi_os_page_size();
         uintptr_t calc_p = (uintptr_t)p;
         void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
