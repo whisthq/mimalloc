@@ -10,9 +10,7 @@ terms of the MIT license. A copy of the license can be found in the file
 
 #include <string.h>  // memset
 #include <sys/mman.h> // mlock
-#if MLOCK_LOG
 #include <stdio.h> // printf
-#endif
 
 #define MI_PAGE_HUGE_ALIGN  (256*1024)
 
