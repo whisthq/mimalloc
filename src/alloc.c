@@ -513,7 +513,7 @@ void mi_free(void* p) mi_attr_noexcept
     // This doesn't cause performance issues in Whist -- very few of our allocations are this large, but they impact memory usage quite a bit
     // See mi_heap_malloc for why we use this as the threshold
     size_t actual_size = mi_usable_size(p); 
-    if (actual_size > MI_MEDIUM_OBJ_SIZE_MAX)) {
+    if (actual_size > MI_MEDIUM_OBJ_SIZE_MAX) {
         size_t os_page_size = _mi_os_page_size();
         uintptr_t calc_p = (uintptr_t)p;
         void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
