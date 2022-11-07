@@ -15,7 +15,7 @@ find_library(LIB_MIMALLOC
     NO_CMAKE_FIND_ROOT_PATH)
 message(STATUS "Found mimalloc lib: ${LIB_MIMALLOC}")
 
-foreach(TEST_NAME basic reset large)
+foreach(TEST_NAME basic reset large thread)
     add_executable(mlock_test_${TEST_NAME} mlock_test_${TEST_NAME}.c)
     target_link_libraries(mlock_test_${TEST_NAME} PUBLIC ${LIB_MIMALLOC})
 endforeach()
