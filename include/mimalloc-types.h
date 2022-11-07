@@ -260,6 +260,7 @@ typedef struct mi_page_s {
   uint8_t               is_reset:1;        // `true` if the page memory was reset
   uint8_t               is_committed:1;    // `true` if the page virtual memory is committed
   uint8_t               is_zero_init:1;    // `true` if the page was zero initialized
+  uint8_t               needs_mlock:1;      // `true` if the page should be mlock'ed the next time it's claimed for allocation
 
   // layout like this to optimize access in `mi_malloc` and `mi_free`
   uint16_t              capacity;          // number of blocks committed, must be the first field, see `segment.c:page_clear`
