@@ -264,7 +264,7 @@ static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
   }
 }
 // likewise, this mlocks a page without an unreset
-static void mi_page_mlock(mi_segment_t* segment, mi_page_t* page, size_t size, mi_segments_tld_t* tld)
+static void mi_page_mlock(mi_segment_t* segment, mi_page_t* page, size_t size)
 {
   if (!page->needs_mlock) {
       return;
@@ -795,7 +795,7 @@ static bool mi_segment_page_claim(mi_segment_t* segment, mi_page_t* page, mi_seg
   }
   // even if the page doesn't need an unreset, it might need mlock on claiming (e.g. right after segment init)
   if (page->needs_mlock) {
-      mi_page_mlock(segment, page, 0, tld);
+      mi_page_mlock(segment, page, 0);
   }
   mi_assert_internal(page->segment_in_use);
   mi_assert_internal(segment->used <= segment->capacity);
