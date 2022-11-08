@@ -5,7 +5,9 @@
 #include <string.h>
 #include <pthread.h>
 
-// Run this while turning on MLOCK_LOG, compare the printfs here with the regions of memory MLOCK'ed and MUNLOCK'ed.
+// make sure that we don't double mlock anything extraneous (e.g. a page used by both parent and child)
+// make sure that when the segment is abandoned, unused pages are munlock'ed (for medium allocations, the first two pages used)
+
 void* common_small;
 void* common_medium;
 void* common_large;
@@ -13,7 +15,7 @@ void* common_large;
 void *thread(void* vargp) {
     // child
     printf("Child allocating...\n");
-    int size = 5;
+    int size = 20;
     void* smalls[size];
     void* mediums[size];
     void* larges[size];
@@ -23,14 +25,16 @@ void *thread(void* vargp) {
         mediums[i] = malloc(1 << 16);
         larges[i] = malloc(1 << 20);
     }
-    for (int i = 0; i < size; i++) {
+    // The child should abandon 
+    for (int i = 0; i < size - 1; i++) {
         free(smalls[i]);
         free(mediums[i]);
         free(larges[i]);
     }
-    common_small = malloc(10);
-    common_medium = malloc(100 * 1000);
-    common_large = malloc(1000 * 1000 * 2);
+    printf("Child finished freeing\n");
+    common_small = smalls[size - 1];
+    common_medium = mediums[size - 1];
+    common_large = larges[size - 1];
     printf("small %p medium %p large %p\n", common_small, common_medium, common_large);
     printf("Child exiting...\n");
     pthread_exit(0);

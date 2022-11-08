@@ -1056,6 +1056,9 @@ static mi_segment_t* mi_abandoned_pop(void) {
     mi_atomic_store_ptr_release(mi_segment_t, &segment->abandoned_next, NULL);
     mi_atomic_decrement_relaxed(&abandoned_count);
   }
+#if MLOCK_LOG
+  printf("MI_ABANDONED_POP returned %p\n", segment);
+#endif
   return segment;
 }
 
@@ -1064,6 +1067,9 @@ static mi_segment_t* mi_abandoned_pop(void) {
 ----------------------------------------------------------- */
 
 static void mi_segment_abandon(mi_segment_t* segment, mi_segments_tld_t* tld) {
+#if MLOCK_LOG
+  printf("MI_SEGMENT_ABANDON %p\n", segment);
+#endif
   mi_assert_internal(segment->used == segment->abandoned);
   mi_assert_internal(segment->used > 0);
   mi_assert_internal(mi_atomic_load_ptr_relaxed(mi_segment_t, &segment->abandoned_next) == NULL);
@@ -1197,6 +1203,9 @@ static mi_segment_t* mi_segment_reclaim(mi_segment_t* segment, mi_heap_t* heap, 
     if (segment->page_kind <= MI_PAGE_MEDIUM && mi_segment_has_free(segment)) {
       mi_segment_insert_in_free_queue(segment, tld);
     }
+#if MLOCK_LOG
+    printf("MI_SEGMENT_RECLAIM %p ", segment);
+#endif
     return segment;
   }
 }
