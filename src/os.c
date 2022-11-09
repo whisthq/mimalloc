@@ -1002,7 +1002,6 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
         // even if the address is unaligned, it lives in a segment whose allocation is aligned, so we are still mlocking allocated memory
         size_t mlock_size;
         void* mlock_start = mi_os_page_align_areax(false, addr, size, &mlock_size);
-        MLOCK(mlock_start, mlock_size);
     }
 #endif
       return true; // nothing to do on unreset!
@@ -1031,7 +1030,6 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   if (csize <= MI_MEDIUM_PAGE_SIZE) {
     size_t mlock_size;
     void* mlock_start = mi_os_page_align_areax(false, addr, size, &mlock_size);
-    MUNLOCK(mlock_start, mlock_size);
   }
 #endif
 #if defined(MADV_FREE)
