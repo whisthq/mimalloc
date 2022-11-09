@@ -231,11 +231,11 @@ static void mi_segment_protect(mi_segment_t* segment, bool protect, mi_os_tld_t*
 ----------------------------------------------------------- */
 
 // WHIST: separate mlocking and munlocking function
-// we need a separate page->needs_mlock boolean because we don't want to mess with page->is_reset
+// we need a separate page->is_mlock boolean because we don't want to mess with page->is_reset
 // because page->is_reset is used for things like determining if abandoned segments need to be unreset
 // so we don't want to set is_reset = true arbitrarily
-// page->needs_mlock and page->is_reset are the same for small/medium pages once a page is claimed
-// but needs_mlock starts true and is_reset starts false
+// page->is_mlock and page->is_reset are the opposite for small/medium pages once a page is claimed
+// but they both start false
 
 // munlock a page but do NOT reset it: this is for use in freeing a segment for reuse
 // we need this function because sometimes a freed or abandoned segment will not reset its pages before being reused
@@ -243,7 +243,7 @@ static void mi_segment_protect(mi_segment_t* segment, bool protect, mi_os_tld_t*
 // this function, inserted in mi_pages_reset_remove_all_in_segment, ensures that pages are always munlock'ed on segment free/abandon
 static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
 {
-  if (page->needs_mlock) {
+  if (!page->is_mlock) {
       return;
   }
   size_t psize;
@@ -253,20 +253,15 @@ static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
     printf("MI_PAGE_MUNLOCK on page %p start %p size %zx\n", page, start, unreset_size);
 #endif
   if (unreset_size > 0 && unreset_size <= MI_MEDIUM_PAGE_SIZE) {
-      // align to page size and munlock
-    size_t os_page_size = _mi_os_page_size();
-    uintptr_t calc_p = (uintptr_t)start;
-    void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
-    size_t mlock_size = unreset_size + (calc_p % os_page_size);
-    // mlock this allocation
-    MUNLOCK(mlock_p, mlock_size);
-    page->needs_mlock = true;
+    // munlock this allocation
+    MUNLOCK(start, unreset_size);
+    page->is_mlock = false;
   }
 }
 // likewise, this mlocks a page without an unreset
 static void mi_page_mlock(mi_segment_t* segment, mi_page_t* page, size_t size)
 {
-  if (!page->needs_mlock) {
+  if (page->is_mlock) {
       return;
   }
   size_t psize;
@@ -282,8 +277,8 @@ static void mi_page_mlock(mi_segment_t* segment, mi_page_t* page, size_t size)
     void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
     size_t mlock_size = unreset_size + (calc_p % os_page_size);
     // mlock this allocation
-    MLOCK(mlock_p, mlock_size);
-    page->needs_mlock = false;
+    MLOCK(start, unreset_size);
+    page->is_mlock = true;
   }
 }
 
@@ -299,8 +294,9 @@ static void mi_page_reset(mi_segment_t* segment, mi_page_t* page, size_t size, m
 #if MLOCK_LOG
     printf("MI_PAGE_RESET on start %p size %zx\n", start, reset_size);
 #endif
+  MUNLOCK(start, reset_size);
   if (reset_size > 0) _mi_mem_reset(start, reset_size, tld->os);
-  page->needs_mlock = true;
+  page->is_mlock = false;
 }
 
 static bool mi_page_unreset(mi_segment_t* segment, mi_page_t* page, size_t size, mi_segments_tld_t* tld)
@@ -320,7 +316,8 @@ static bool mi_page_unreset(mi_segment_t* segment, mi_page_t* page, size_t size,
   bool ok = true;
   if (unreset_size > 0) {
     ok = _mi_mem_unreset(start, unreset_size, &is_zero, tld->os);
-    page->needs_mlock = false;
+    MLOCK(start, unreset_size);
+    page->is_mlock = true;
   }
   if (is_zero) page->is_zero_init = true;
   return ok;
@@ -687,10 +684,6 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
     for (size_t i = 0; i < capacity; i++) {
       mi_assert_internal(i <= 255);
       segment->pages[i].segment_idx = (uint8_t)i;
-      if (page_kind <= MI_PAGE_MEDIUM) {
-          // if the page is small or medium, it should be mlock'ed on the next page claim
-          segment->pages[i].needs_mlock = true;
-      }
       segment->pages[i].is_reset = false;
       segment->pages[i].is_committed = commit;
       segment->pages[i].is_zero_init = is_zero;
@@ -794,7 +787,7 @@ static bool mi_segment_page_claim(mi_segment_t* segment, mi_page_t* page, mi_seg
     }
   }
   // even if the page doesn't need an unreset, it might need mlock on claiming (e.g. right after segment init)
-  if (page->needs_mlock) {
+  if (!page->is_mlock && segment->page_kind <= MI_PAGE_MEDIUM) {
       mi_page_mlock(segment, page, 0);
   }
   mi_assert_internal(page->segment_in_use);

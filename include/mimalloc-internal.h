@@ -212,21 +212,27 @@ bool        _mi_page_is_valid(mi_page_t* page);
 // WHIST: MLOCK and MUNLOCK macros
 #ifndef MLOCK
 #define MLOCK(addr, size) { \
+    size_t os_page_size = _mi_os_page_size(); \
+    uintptr_t calc_p = (uintptr_t)addr; \
+    void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size); \
+    size_t mlock_size = size + (calc_p % os_page_size); \
     if (MLOCK_LOG) { \
-        printf("MLOCK %p %zx\n", addr, size); \
+        printf("MLOCK %p %zx\n", mlock_p, mlock_size); \
     } \
-    mi_assert((uintptr_t) addr % os_page_size == 0); \
-    int ret = mlock(addr, size); \
+    int ret = mlock(mlock_p, mlock_size); \
     if (ret != 0) { \
         _mi_warning_message("mlock failed with error %s\n", strerror(errno)); \
     } \
 }
 #define MUNLOCK(addr, size) { \
+    size_t os_page_size = _mi_os_page_size(); \
+    uintptr_t calc_p = (uintptr_t)addr; \
+    void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size); \
+    size_t mlock_size = size + (calc_p % os_page_size); \
     if (MLOCK_LOG) { \
-        printf("MUNLOCK %p %zx\n", addr, size); \
+        printf("MUNLOCK %p %zx\n", mlock_p, mlock_size); \
     } \
-    mi_assert((uintptr_t) addr % os_page_size == 0); \
-    int ret = munlock(addr, size); \
+    int ret = munlock(mlock_p, mlock_size); \
     if (ret != 0) { \
         _mi_warning_message("munlock failed with error %s\n", strerror(errno)); \
     } \
