@@ -123,12 +123,8 @@ extern inline mi_decl_restrict void* mi_heap_malloc(mi_heap_t* heap, size_t size
     // if so, we should mlock the allocation directly; otherwise we waste >= 3mb per large allocation
     size_t actual_size = mi_usable_size(p); 
     if (actual_size > MI_MEDIUM_OBJ_SIZE_MAX) {
-        size_t os_page_size = _mi_os_page_size();
-        uintptr_t calc_p = (uintptr_t)p;
-        void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
-        size_t mlock_size = actual_size + (calc_p % os_page_size);
         // mlock this allocation
-        MLOCK(mlock_p, mlock_size);
+        MLOCK(p, actual_size);
     }
 #if MLOCK_LOG
     printf("MI_HEAP_MALLOC returned %p size %zx\n", p, mi_usable_size(p));
@@ -514,12 +510,8 @@ void mi_free(void* p) mi_attr_noexcept
     // See mi_heap_malloc for why we use this as the threshold
     size_t actual_size = mi_usable_size(p); 
     if (actual_size > MI_MEDIUM_OBJ_SIZE_MAX) {
-        size_t os_page_size = _mi_os_page_size();
-        uintptr_t calc_p = (uintptr_t)p;
-        void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
-        size_t mlock_size = actual_size + (calc_p % os_page_size);
         // mlock this allocation
-        MUNLOCK(mlock_p, mlock_size);
+        MUNLOCK(p, actual_size);
     }
   
   if (mi_likely(tid == mi_atomic_load_relaxed(&segment->thread_id) && page->flags.full_aligned == 0)) {  // the thread id matches and it is not a full page, nor has aligned blocks
