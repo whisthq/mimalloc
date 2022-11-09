@@ -294,9 +294,11 @@ static void mi_page_reset(mi_segment_t* segment, mi_page_t* page, size_t size, m
 #if MLOCK_LOG
     printf("MI_PAGE_RESET on start %p size %zx\n", start, reset_size);
 #endif
+#if defined(__APPLE__)
   MUNLOCK(start, reset_size);
-  if (reset_size > 0) _mi_mem_reset(start, reset_size, tld->os);
   page->is_mlock = false;
+#endif
+  if (reset_size > 0) _mi_mem_reset(start, reset_size, tld->os);
 }
 
 static bool mi_page_unreset(mi_segment_t* segment, mi_page_t* page, size_t size, mi_segments_tld_t* tld)
@@ -316,8 +318,10 @@ static bool mi_page_unreset(mi_segment_t* segment, mi_page_t* page, size_t size,
   bool ok = true;
   if (unreset_size > 0) {
     ok = _mi_mem_unreset(start, unreset_size, &is_zero, tld->os);
+#if defined(__APPLE__)
     MLOCK(start, unreset_size);
     page->is_mlock = true;
+#endif
   }
   if (is_zero) page->is_zero_init = true;
   return ok;
@@ -399,11 +403,13 @@ static void mi_pages_reset_remove_all_in_segment(mi_segment_t* segment, bool for
     mi_page_t* page = &segment->pages[i];
     if (!page->segment_in_use && page->is_committed && !page->is_reset) {
       mi_pages_reset_remove(page, tld);
+#if defined(__APPLE__)
+      // even if the page is not reset, munlock the page so that we don't nest mlocks the next time the page is used
+      mi_page_munlock(segment, page, 0);
+#endif
       if (force_reset) {
         mi_page_reset(segment, page, 0, tld);
       }
-      // even if the page is not reset, munlock the page so that we don't nest mlocks the next time the page is used
-      mi_page_munlock(segment, page, 0);
     }
     else {
       mi_assert_internal(mi_page_not_in_queue(page,tld));
@@ -786,10 +792,12 @@ static bool mi_segment_page_claim(mi_segment_t* segment, mi_page_t* page, mi_seg
       return false;
     }
   }
+#if defined(__APPLE__)
   // even if the page doesn't need an unreset, it might need mlock on claiming (e.g. right after segment init)
   if (!page->is_mlock && segment->page_kind <= MI_PAGE_MEDIUM) {
       mi_page_mlock(segment, page, 0);
   }
+#endif
   mi_assert_internal(page->segment_in_use);
   mi_assert_internal(segment->used <= segment->capacity);
   if (segment->used == segment->capacity && segment->page_kind <= MI_PAGE_MEDIUM) {
