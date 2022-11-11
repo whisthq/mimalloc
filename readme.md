@@ -58,7 +58,7 @@ git rebase upstream/main
 git push origin <current branch>
 ```
 
-Note that `whist-main`, the default branch on this repository, should be based off of the latest stable release tag from upstream mimalloc.
+Note that `main`, the default branch on this repository, should be based off of the latest stable release tag from upstream mimalloc.
 
 ## Building
 
