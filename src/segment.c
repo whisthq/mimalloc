@@ -232,10 +232,10 @@ static void mi_segment_protect(mi_segment_t* segment, bool protect, mi_os_tld_t*
 ----------------------------------------------------------- */
 
 // WHIST: separate mlocking and munlocking function
-// we need a separate page->is_mlock boolean because we don't want to mess with page->is_reset
+// we need a separate page->is_mlocked boolean because we don't want to mess with page->is_reset
 // because page->is_reset is used for things like determining if abandoned segments need to be unreset
 // so we don't want to set is_reset = true arbitrarily
-// page->is_mlock and page->is_reset are the opposite for small/medium pages once a page is claimed
+// page->is_mlocked and page->is_reset are the opposite for small/medium pages once a page is claimed
 // but they both start false
 
 // munlock a page but do NOT reset it: this is for use in freeing a segment for reuse
@@ -244,7 +244,7 @@ static void mi_segment_protect(mi_segment_t* segment, bool protect, mi_os_tld_t*
 // this function, inserted in mi_pages_reset_remove_all_in_segment, ensures that pages are always munlock'ed on segment free/abandon
 static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
 {
-  if (!page->is_mlock) {
+  if (!page->is_mlocked) {
       return;
   }
   size_t psize;
@@ -256,13 +256,13 @@ static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
   if (unreset_size > 0 && unreset_size <= MI_MEDIUM_PAGE_SIZE) {
     // munlock this allocation
     MUNLOCK(start, unreset_size);
-    page->is_mlock = false;
+    page->is_mlocked = false;
   }
 }
 // likewise, this mlocks a page without an unreset
 static void mi_page_mlock(mi_segment_t* segment, mi_page_t* page, size_t size)
 {
-  if (page->is_mlock) {
+  if (page->is_mlocked) {
       return;
   }
   size_t psize;
@@ -281,7 +281,7 @@ static void mi_page_mlock(mi_segment_t* segment, mi_page_t* page, size_t size)
     */
     // mlock this allocation
     MLOCK(start, unreset_size);
-    page->is_mlock = true;
+    page->is_mlocked = true;
   }
 }
 
@@ -813,7 +813,7 @@ static bool mi_segment_page_claim(mi_segment_t* segment, mi_page_t* page, mi_seg
   }
 #if defined(__APPLE__)
   // even if the page doesn't need an unreset, it might need mlock on claiming (e.g. right after segment init)
-  if (!page->is_mlock && segment->page_kind <= MI_PAGE_MEDIUM) {
+  if (!page->is_mlocked && segment->page_kind <= MI_PAGE_MEDIUM) {
       mi_page_mlock(segment, page, 0);
   }
 #endif
