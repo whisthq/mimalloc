@@ -813,7 +813,7 @@ static bool mi_segment_page_claim(mi_segment_t* segment, mi_page_t* page, mi_seg
   }
 #if defined(__APPLE__)
   // even if the page doesn't need an unreset, it might need mlock on claiming (e.g. right after segment init)
-  if (!page->is_mlocked && segment->page_kind <= MI_PAGE_MEDIUM) {
+  if (segment->page_kind <= MI_PAGE_MEDIUM) {
       mi_page_mlock(segment, page, 0);
   }
 #endif

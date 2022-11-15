@@ -75,12 +75,12 @@ jobs:
 
           if [[ "${{ matrix.config.name }}" == "macOS (x64)" ]]; then
             # configure Cmake and build mimalloc for native compilation on x64 systems
-            cmake -D MI_OSX_INTERPOSE=OFF -D MI_OSX_ZONE=OFF ../.. \
+            cmake -D MI_OVERRIDE=ON -D MI_OSX_INTERPOSE=ON -D MI_OSX_ZONE=ON ../.. \
                   -D CMAKE_OSX_DEPLOYMENT_TARGET="10.15" \
                   -D CMAKE_OSX_SYSROOT="${{ env.CMAKE_OSX_SYSROOT }}"
           elif [[ "${{ matrix.config.name }}" == "macOS (arm64)" ]]; then
             # configure Cmake and build mimalloc for cross-compilation to arm64 from x64 systems
-            cmake -D MI_OSX_INTERPOSE=OFF -D MI_OSX_ZONE=OFF ../.. \
+            cmake -D MI_OVERRIDE=ON -D MI_OSX_INTERPOSE=ON -D MI_OSX_ZONE=ON ../.. \
                   -D CMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
                   -D CMAKE_OSX_ARCHITECTURES="arm64" \
                   -D CMAKE_OSX_SYSROOT="${{ env.CMAKE_OSX_SYSROOT }}"
@@ -90,7 +90,7 @@ jobs:
           fi
 
           # build mimalloc
-          make
+          make install
 
       ###################################################################################
       ################################# PUBLISH STEPS START #############################
@@ -103,10 +103,10 @@ jobs:
         run: |
           if [ "$RUNNER_OS" == "macOS" ]; then
             if [[ "${{ matrix.config.name }}" == "macOS (x64)" ]]; then
-              tar -zcvf ${{ env.macos-x64-tar-name }} libmimalloc.a
+              tar -zcvf ${{ env.macos-x64-tar-name }} mimalloc.o
               aws s3 cp ${{ env.macos-x64-tar-name }} ${{ env.s3-bucket-uri }}/${{ env.macos-x64-tar-name }}
             elif [[ "${{ matrix.config.name }}" == "macOS (arm64)" ]]; then
-              tar -zcvf ${{ env.macos-arm64-tar-name }} libmimalloc.a
+              tar -zcvf ${{ env.macos-arm64-tar-name }} mimalloc.o
               aws s3 cp ${{ env.macos-arm64-tar-name }} ${{ env.s3-bucket-uri }}/${{ env.macos-arm64-tar-name }}
             else
               echo "Tried to tar and upload to AWS S3 for an unsupported OS"
