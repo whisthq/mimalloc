@@ -48,6 +48,9 @@ terms of the MIT license. A copy of the license can be found in the file
 #endif
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
+#include <errno.h>
+#include <string.h>
+#include <stdio.h>
 #if !TARGET_IOS_IPHONE && !TARGET_IOS_SIMULATOR
 #include <mach/vm_statistics.h>
 #endif
@@ -695,6 +698,7 @@ static void* mi_unix_mmap(void* addr, size_t size, size_t try_alignment, int pro
   if (p == NULL) {
     _mi_warning_message("unable to allocate OS memory (%zu bytes, error code: %i, address: %p, large only: %d, allow large: %d)\n", size, errno, addr, large_only, allow_large);
   }
+    // printf("MMAP %p size %zx\n", p, size);
   return p;
 }
 #endif
@@ -887,6 +891,11 @@ static void mi_mprotect_hint(int err) {
 // Usually commit is aligned liberal, while decommit is aligned conservative.
 // (but not for the reset version where we want commit to be conservative as well)
 static bool mi_os_commitx(void* addr, size_t size, bool commit, bool conservative, bool* is_zero, mi_stats_t* stats) {
+#if MLOCK_LOG
+  printf("MI_OS_COMMITX called on %p size %zx\n", addr, size);
+#endif
+  // NOTE: as far as I (Serina) can tell by running the protocol for ~1hr, commit and decommit are not called.
+  // So I haven't inserted mlock and munlocks here.
   // page align in the range, commit liberally, decommit conservative
   if (is_zero != NULL) { *is_zero = false; }
   size_t csize;
@@ -984,7 +993,9 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   if (csize == 0) return true;  // || _mi_os_is_huge_reserved(addr)
   if (reset) _mi_stat_increase(&stats->reset, csize);
         else _mi_stat_decrease(&stats->reset, csize);
-  if (!reset) return true; // nothing to do on unreset!
+  if (!reset) {
+      return true; // nothing to do on unreset!
+  }
 
   #if (MI_DEBUG>1)
   if (MI_SECURE==0) {
@@ -1007,7 +1018,9 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   static _Atomic(size_t) advice = MI_ATOMIC_VAR_INIT(MADV_FREE);
   int oadvice = (int)mi_atomic_load_relaxed(&advice);
   int err;
-  while ((err = mi_madvise(start, csize, oadvice)) != 0 && errno == EAGAIN) { errno = 0;  };
+  while ((err = mi_madvise(start, csize, oadvice)) != 0 && errno == EAGAIN) {
+      errno = 0;
+  };
   if (err != 0 && errno == EINVAL && oadvice == MADV_FREE) {  
     // if MADV_FREE is not supported, fall back to MADV_DONTNEED from now on
     mi_atomic_store_release(&advice, (size_t)MADV_DONTNEED);

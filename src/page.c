@@ -380,6 +380,8 @@ void _mi_page_free(mi_page_t* page, mi_page_queue_t* pq, bool force) {
 #define MI_MAX_RETIRE_SIZE    MI_LARGE_OBJ_SIZE_MAX  
 #define MI_RETIRE_CYCLES      (8)
 
+#include <stdio.h>
+
 // Retire a page with no more used blocks
 // Important to not retire too quickly though as new
 // allocations might coming.
@@ -387,6 +389,9 @@ void _mi_page_free(mi_page_t* page, mi_page_queue_t* pq, bool force) {
 // trigger this due to freeing everything and then
 // allocating again so careful when changing this.
 void _mi_page_retire(mi_page_t* page) mi_attr_noexcept {
+#if MLOCK_LOG
+  printf("MI_PAGE_RETIRE %p", (void*)page);
+#endif
   mi_assert_internal(page != NULL);
   mi_assert_expensive(_mi_page_is_valid(page));
   mi_assert_internal(mi_page_all_free(page));
@@ -402,6 +407,9 @@ void _mi_page_retire(mi_page_t* page) mi_attr_noexcept {
   mi_page_queue_t* pq = mi_page_queue_of(page);
   if (mi_likely(page->xblock_size <= MI_MAX_RETIRE_SIZE && !mi_page_is_in_full(page))) {
     if (pq->last==page && pq->first==page) { // the only page in the queue?
+#if MLOCK_LOG
+      printf(" says only page in queue\n");
+#endif
       mi_stat_counter_increase(_mi_stats_main.page_no_retire,1);
       page->retire_expire = (page->xblock_size <= MI_SMALL_OBJ_SIZE_MAX ? MI_RETIRE_CYCLES : MI_RETIRE_CYCLES/4);
       mi_heap_t* heap = mi_page_heap(page);
@@ -415,6 +423,9 @@ void _mi_page_retire(mi_page_t* page) mi_attr_noexcept {
     }
   }
 
+#if MLOCK_LOG
+  printf("\n");
+#endif
   _mi_page_free(page, pq, false);
 }
 

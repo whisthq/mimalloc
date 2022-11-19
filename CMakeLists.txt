@@ -372,7 +372,7 @@ if (MI_BUILD_OBJECT)
   # the FILES expression can also be: $<TARGET_OBJECTS:mimalloc-obj>
   # but that fails cmake versions less than 3.10 so we leave it as is for now
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/mimalloc-obj.dir/src/static.c${CMAKE_C_OUTPUT_EXTENSION}
-          DESTINATION ${mi_install_objdir}
+          DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
           RENAME ${mi_basename}${CMAKE_C_OUTPUT_EXTENSION} )
 endif()
 

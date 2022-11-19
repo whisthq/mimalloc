@@ -209,6 +209,30 @@ bool        _mi_page_is_valid(mi_page_t* page);
 #define MI_INIT128(x) MI_INIT64(x),MI_INIT64(x)
 #define MI_INIT256(x) MI_INIT128(x),MI_INIT128(x)
 
+// WHIST: MLOCK and MUNLOCK macros
+#ifndef MLOCK
+#define MLOCK(addr, size) { \
+    mi_assert((uintptr_t) addr & _mi_os_page_size() == 0); \
+    if (MLOCK_LOG) { \
+        printf("MLOCK %p %zx\n", (void*)addr, size); \
+    } \
+    int ret = mlock(addr, size); \
+    if (ret != 0) { \
+        _mi_warning_message("mlock failed with error %s\n", strerror(errno)); \
+    } \
+}
+#define MUNLOCK(addr, size) { \
+    mi_assert((uintptr_t) addr & _mi_os_page_size() == 0); \
+    if (MLOCK_LOG) { \
+        printf("MUNLOCK %p %zx\n", (void*)addr, size); \
+    } \
+    int ret = munlock(addr, size); \
+    if (ret != 0) { \
+        _mi_warning_message("munlock failed with error %s\n", strerror(errno)); \
+    } \
+}
+#endif // MLOCk
+
 
 // Is `x` a power of two? (0 is considered a power of two)
 static inline bool _mi_is_power_of_two(uintptr_t x) {

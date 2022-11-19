@@ -9,11 +9,13 @@ terms of the MIT license. A copy of the license can be found in the file
 #include "mimalloc-atomic.h"
 
 #include <string.h>  // memset
-#include <stdio.h>
+#include <sys/mman.h> // mlock
+#include <stdio.h> // printf
 
 #define MI_PAGE_HUGE_ALIGN  (256*1024)
 
 static uint8_t* mi_segment_raw_page_start(const mi_segment_t* segment, const mi_page_t* page, size_t* page_size);
+static uint8_t* mi_segment_aligned_page_start(const mi_segment_t* segment, const mi_page_t* page, size_t* page_size);
 
 /* --------------------------------------------------------------------------------
   Segment allocation
@@ -229,6 +231,53 @@ static void mi_segment_protect(mi_segment_t* segment, bool protect, mi_os_tld_t*
   Page reset
 ----------------------------------------------------------- */
 
+// WHIST: separate mlocking and munlocking function
+// we need a separate page->is_mlocked boolean because we don't want to mess with page->is_reset
+// because page->is_reset is used for things like determining if abandoned segments need to be unreset
+// so we don't want to set is_reset = true arbitrarily
+// page->is_mlocked and page->is_reset are the opposite for small/medium pages once a page is claimed
+// but they both start false
+
+// munlock a page but do NOT reset it: this is for use in freeing a segment for reuse
+// we need this function because sometimes a freed or abandoned segment will not reset its pages before being reused
+// in that case it's possible to mlock the same area of memory multiple times with no munlock
+// this function, inserted in mi_pages_reset_remove_all_in_segment, ensures that pages are always munlock'ed on segment free/abandon
+static void mi_page_munlock(mi_segment_t* segment, mi_page_t* page, size_t size)
+{
+  if (!page->is_mlocked) {
+      return;
+  }
+  size_t psize;
+  uint8_t* start = mi_segment_aligned_page_start(segment, page, &psize);
+  size_t unreset_size = (size == 0 || size > psize ? psize : size);
+#if MLOCK_LOG
+    printf("MI_PAGE_MUNLOCK on page %p start %p size %zx\n", (void*)page, (void*)start, unreset_size);
+#endif
+  if (unreset_size > 0 && unreset_size <= MI_MEDIUM_PAGE_SIZE) {
+    // munlock this allocation
+    MUNLOCK(start, unreset_size);
+    page->is_mlocked = false;
+  }
+}
+// likewise, this mlocks a page without an unreset
+static void mi_page_mlock(mi_segment_t* segment, mi_page_t* page, size_t size)
+{
+  if (page->is_mlocked) {
+      return;
+  }
+  size_t psize;
+  uint8_t* start = mi_segment_aligned_page_start(segment, page, &psize);
+  size_t unreset_size = (size == 0 || size > psize ? psize : size);
+#if MLOCK_LOG
+    printf("MI_PAGE_MLOCK on start %p size %zx\n", (void*)start, unreset_size);
+#endif
+  if (unreset_size > 0 && unreset_size <= MI_MEDIUM_PAGE_SIZE) {
+    // mlock this allocation
+    MLOCK(start, unreset_size);
+    page->is_mlocked = true;
+  }
+}
+
 static void mi_page_reset(mi_segment_t* segment, mi_page_t* page, size_t size, mi_segments_tld_t* tld) {
   mi_assert_internal(page->is_committed);
   if (!mi_option_is_enabled(mi_option_page_reset)) return;
@@ -238,6 +287,12 @@ static void mi_page_reset(mi_segment_t* segment, mi_page_t* page, size_t size, m
   page->is_reset = true;
   mi_assert_internal(size <= psize);
   size_t reset_size = ((size == 0 || size > psize) ? psize : size);
+#if MLOCK_LOG
+    printf("MI_PAGE_RESET on start %p size %zx\n", (void*)start, reset_size);
+#endif
+#if defined(__APPLE__)
+  mi_page_munlock(segment, page, size);
+#endif
   if (reset_size > 0) _mi_mem_reset(start, reset_size, tld->os);
 }
 
@@ -251,10 +306,16 @@ static bool mi_page_unreset(mi_segment_t* segment, mi_page_t* page, size_t size,
   size_t psize;
   uint8_t* start = mi_segment_raw_page_start(segment, page, &psize);
   size_t unreset_size = (size == 0 || size > psize ? psize : size);
+#if MLOCK_LOG
+    printf("MI_PAGE_UNRESET on start %p size %zx\n", (void*)start, unreset_size);
+#endif
   bool is_zero = false;
   bool ok = true;
   if (unreset_size > 0) {
     ok = _mi_mem_unreset(start, unreset_size, &is_zero, tld->os);
+#if defined(__APPLE__)
+    mi_page_mlock(segment, page, size);
+#endif
   }
   if (is_zero) page->is_zero_init = true;
   return ok;
@@ -280,6 +341,9 @@ static bool mi_page_reset_is_expired(mi_page_t* page, mi_msecs_t now) {
 }
 
 static void mi_pages_reset_add(mi_segment_t* segment, mi_page_t* page, mi_segments_tld_t* tld) {
+#if MLOCK_LOG
+    printf("_MI_PAGE_RESET_ADD %p\n", (void*)page);
+#endif
   mi_assert_internal(!page->segment_in_use || !page->is_committed);
   mi_assert_internal(mi_page_not_in_queue(page,tld));
   mi_assert_expensive(!mi_pages_reset_contains(page, tld));
@@ -310,6 +374,9 @@ static void mi_pages_reset_add(mi_segment_t* segment, mi_page_t* page, mi_segmen
 }
 
 static void mi_pages_reset_remove(mi_page_t* page, mi_segments_tld_t* tld) {
+#if MLOCK_LOG
+    printf("MI_PAGES_RESET_REMOVE %p\n", (void*)page);
+#endif
   if (mi_page_not_in_queue(page,tld)) return;
 
   mi_page_queue_t* pq = &tld->pages_reset;
@@ -330,6 +397,10 @@ static void mi_pages_reset_remove_all_in_segment(mi_segment_t* segment, bool for
     mi_page_t* page = &segment->pages[i];
     if (!page->segment_in_use && page->is_committed && !page->is_reset) {
       mi_pages_reset_remove(page, tld);
+#if defined(__APPLE__)
+      // even if the page is not reset, munlock the page so that we don't nest mlocks the next time the page is used
+      mi_page_munlock(segment, page, 0);
+#endif
       if (force_reset) {
         mi_page_reset(segment, page, 0, tld);
       }
@@ -391,6 +462,24 @@ static uint8_t* mi_segment_raw_page_start(const mi_segment_t* segment, const mi_
   if (page_size != NULL) *page_size = psize;
   mi_assert_internal(page->xblock_size == 0 || _mi_ptr_page(p) == page);
   mi_assert_internal(_mi_ptr_segment(p) == segment);
+  return p;
+}
+
+// Get the start of the page, or if the page is the first in the segment, the start of the segment. 
+// This is used for mlocking
+static uint8_t* mi_segment_aligned_page_start(const mi_segment_t* segment, const mi_page_t* page, size_t* page_size) {
+  size_t   psize = (segment->page_kind == MI_PAGE_HUGE ? segment->segment_size : (size_t)1 << segment->page_shift);
+  uint8_t* p = (uint8_t*)segment + page->segment_idx * psize;
+#if (MI_SECURE > 1)  // every page has an os guard page
+  psize -= _mi_os_page_size();
+#elif (MI_SECURE==1) // the last page has an os guard page at the end
+  if (page->segment_idx == segment->capacity - 1) {
+    psize -= _mi_os_page_size();
+  }
+#endif
+  if (page_size != NULL) {
+    *page_size = psize;
+  }
   return p;
 }
 
@@ -505,6 +594,9 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
   if (page_kind == MI_PAGE_HUGE) {
     mi_assert_internal(page_shift == MI_SEGMENT_SHIFT && required > 0);
     capacity = 1;
+#if MLOCK_LOG
+    printf("MI_SEGMENT_INIT called, capacity %zx, huge page\n", capacity);
+#endif
   }
   else {
     mi_assert_internal(required == 0);
@@ -512,6 +604,9 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
     capacity = MI_SEGMENT_SIZE / page_size;
     mi_assert_internal(MI_SEGMENT_SIZE % page_size == 0);
     mi_assert_internal(capacity >= 1 && capacity <= MI_SMALL_PAGES_PER_SEGMENT);
+#if MLOCK_LOG
+    printf("MI_SEGMENT_INIT called, capacity %zx, page_size %zx\n", capacity, page_size);
+#endif
   }
   size_t info_size;
   size_t pre_size;
@@ -530,6 +625,9 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
 
   // Try to get it from our thread local cache first
   if (segment != NULL) {
+#if MLOCK_LOG
+    printf("MI_SEGMENT_INIT called, got a segment from the cache\n");
+#endif
     // came from cache
     mi_assert_internal(segment->segment_size == segment_size);
     if (page_kind <= MI_PAGE_MEDIUM && segment->page_kind == page_kind && segment->segment_size == segment_size) {
@@ -571,6 +669,9 @@ static mi_segment_t* mi_segment_init(mi_segment_t* segment, size_t required, mi_
     bool   mem_large = (!eager_delayed && (MI_SECURE==0)); // only allow large OS pages once we are no longer lazy
     bool   is_pinned = false;
     segment = (mi_segment_t*)_mi_mem_alloc_aligned(segment_size, MI_SEGMENT_SIZE, &commit, &mem_large, &is_pinned, &is_zero, &memid, os_tld);
+#if MLOCK_LOG
+      printf("MI_SEGMENT_INIT allocating from OS at %p, size %zx\n", (void*)segment, segment_size);
+#endif
     if (segment == NULL) return NULL;  // failed to allocate
     if (!commit) {
       // ensure the initial info is committed
@@ -639,9 +740,13 @@ static mi_segment_t* mi_segment_alloc(size_t required, mi_page_kind_t page_kind,
 }
 
 static void mi_segment_free(mi_segment_t* segment, bool force, mi_segments_tld_t* tld) {
+#if MLOCK_LOG
+  printf("MI_SEGMENT_FREE segment %p\n", (void*)segment);
+#endif
   MI_UNUSED(force);
   mi_assert(segment != NULL);
   // note: don't reset pages even on abandon as the whole segment is freed? (and ready for reuse)
+  // SERINA: But do munlock pages, since we don't want to unnecessarily nest mlocks (see mi_pages_reset_remove_all_in_segment
   bool force_reset = (force && mi_option_is_enabled(mi_option_abandoned_page_reset));
   mi_pages_reset_remove_all_in_segment(segment, force_reset, tld);
   mi_segment_remove_from_free_queue(segment,tld);
@@ -666,6 +771,9 @@ static bool mi_segment_has_free(const mi_segment_t* segment) {
 }
 
 static bool mi_segment_page_claim(mi_segment_t* segment, mi_page_t* page, mi_segments_tld_t* tld) {
+#if MLOCK_LOG
+  printf("MI_SEGMENT_PAGE_CLAIM %p\n", (void*)page);
+#endif
   mi_assert_internal(_mi_page_segment(page) == segment);
   mi_assert_internal(!page->segment_in_use);
   mi_pages_reset_remove(page, tld);
@@ -696,6 +804,10 @@ static bool mi_segment_page_claim(mi_segment_t* segment, mi_page_t* page, mi_seg
       return false;
     }
   }
+#if defined(__APPLE__)
+  // even if the page doesn't need an unreset, it might need mlock on claiming (e.g. right after segment init)
+  mi_page_mlock(segment, page, 0);
+#endif
   mi_assert_internal(page->segment_in_use);
   mi_assert_internal(segment->used <= segment->capacity);
   if (segment->used == segment->capacity && segment->page_kind <= MI_PAGE_MEDIUM) {
@@ -955,6 +1067,9 @@ static mi_segment_t* mi_abandoned_pop(void) {
     mi_atomic_store_ptr_release(mi_segment_t, &segment->abandoned_next, NULL);
     mi_atomic_decrement_relaxed(&abandoned_count);
   }
+#if MLOCK_LOG
+  printf("MI_ABANDONED_POP returned %p\n", (void*)segment);
+#endif
   return segment;
 }
 
@@ -963,6 +1078,9 @@ static mi_segment_t* mi_abandoned_pop(void) {
 ----------------------------------------------------------- */
 
 static void mi_segment_abandon(mi_segment_t* segment, mi_segments_tld_t* tld) {
+#if MLOCK_LOG
+  printf("MI_SEGMENT_ABANDON %p\n", (void*)segment);
+#endif
   mi_assert_internal(segment->used == segment->abandoned);
   mi_assert_internal(segment->used > 0);
   mi_assert_internal(mi_atomic_load_ptr_relaxed(mi_segment_t, &segment->abandoned_next) == NULL);
@@ -1096,6 +1214,9 @@ static mi_segment_t* mi_segment_reclaim(mi_segment_t* segment, mi_heap_t* heap, 
     if (segment->page_kind <= MI_PAGE_MEDIUM && mi_segment_has_free(segment)) {
       mi_segment_insert_in_free_queue(segment, tld);
     }
+#if MLOCK_LOG
+    printf("MI_SEGMENT_RECLAIM %p ", (void*)segment);
+#endif
     return segment;
   }
 }
