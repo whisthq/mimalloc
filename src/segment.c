@@ -272,13 +272,6 @@ static void mi_page_mlock(mi_segment_t* segment, mi_page_t* page, size_t size)
     printf("MI_PAGE_MLOCK on start %p size %zx\n", (void*)start, unreset_size);
 #endif
   if (unreset_size > 0 && unreset_size <= MI_MEDIUM_PAGE_SIZE) {
-      /*
-      // align to page size and munlock
-    size_t os_page_size = _mi_os_page_size();
-    uintptr_t calc_p = (uintptr_t)start;
-    void* mlock_p = (void*)((calc_p / os_page_size) * os_page_size);
-    size_t mlock_size = unreset_size + (calc_p % os_page_size);
-    */
     // mlock this allocation
     MLOCK(start, unreset_size);
     page->is_mlocked = true;
@@ -813,9 +806,7 @@ static bool mi_segment_page_claim(mi_segment_t* segment, mi_page_t* page, mi_seg
   }
 #if defined(__APPLE__)
   // even if the page doesn't need an unreset, it might need mlock on claiming (e.g. right after segment init)
-  if (segment->page_kind <= MI_PAGE_MEDIUM) {
-      mi_page_mlock(segment, page, 0);
-  }
+  mi_page_mlock(segment, page, 0);
 #endif
   mi_assert_internal(page->segment_in_use);
   mi_assert_internal(segment->used <= segment->capacity);
